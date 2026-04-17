@@ -15,6 +15,9 @@ env/
 .venv/
 .env/
 
+# Project venv
+.venv
+
 # Environment variables
 .env
 *.env
