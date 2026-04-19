@@ -1,8 +1,4 @@
-from aiogram.types import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    WebAppInfo,
-)
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot.locales import t
 
@@ -24,10 +20,10 @@ def niches_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def webapp_keyboard(lang: str, url: str) -> InlineKeyboardMarkup:
+def demo_bot_keyboard(lang: str, url: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=t(lang, "open_demo"), web_app=WebAppInfo(url=url))],
+            [InlineKeyboardButton(text=t(lang, "open_demo"), url=url)],
             [InlineKeyboardButton(text=t(lang, "back"), callback_data="demo:back")],
         ]
     )

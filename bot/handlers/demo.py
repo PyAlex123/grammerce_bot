@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.config import settings
 from bot.db import crud
-from bot.keyboards.demo import niches_keyboard, webapp_keyboard
+from bot.keyboards.demo import demo_bot_keyboard, niches_keyboard
 from bot.locales import t
 from bot.locales.ru import texts as RU
 from bot.locales.uz import texts as UZ
@@ -59,6 +59,6 @@ async def handle_demo_callback(callback: CallbackQuery, session: AsyncSession) -
     niche_label_key = f"niche_{niche}"
     await callback.message.edit_text(
         f"{t(lang, niche_label_key)}\n\n{t(lang, 'open_demo')}",
-        reply_markup=webapp_keyboard(lang, url),
+        reply_markup=demo_bot_keyboard(lang, url),
     )
     await callback.answer()

@@ -8,22 +8,22 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     SUPPORT_CHAT_ID: int
 
-    DEMO_URL_COFFEE: str = "https://demo.grammerce.io/coffee"
-    DEMO_URL_CLOTHES: str = "https://demo.grammerce.io/clothes"
-    DEMO_URL_FLOWERS: str = "https://demo.grammerce.io/flowers"
-    DEMO_URL_FOOD: str = "https://demo.grammerce.io/food"
-    DEMO_URL_COSMETICS: str = "https://demo.grammerce.io/cosmetics"
-    DEMO_URL_ELECTRONICS: str = "https://demo.grammerce.io/electronics"
+    DEMO_BOT_COFFEE: str = "https://t.me/grammerce_coffee_bot"
+    DEMO_BOT_CLOTHES: str = "https://t.me/grammerce_clothes_bot"
+    DEMO_BOT_FLOWERS: str = "https://t.me/grammerce_flowers_bot"
+    DEMO_BOT_FOOD: str = "https://t.me/grammerce_food_bot"
+    DEMO_BOT_COSMETICS: str = "https://t.me/grammerce_cosmetics_bot"
+    DEMO_BOT_ELECTRONICS: str = "https://t.me/grammerce_electronics_bot"
 
     @property
     def demo_urls(self) -> dict[str, str]:
         return {
-            "coffee": self.DEMO_URL_COFFEE,
-            "clothes": self.DEMO_URL_CLOTHES,
-            "flowers": self.DEMO_URL_FLOWERS,
-            "food": self.DEMO_URL_FOOD,
-            "cosmetics": self.DEMO_URL_COSMETICS,
-            "electronics": self.DEMO_URL_ELECTRONICS,
+            "coffee": self.DEMO_BOT_COFFEE,
+            "clothes": self.DEMO_BOT_CLOTHES,
+            "flowers": self.DEMO_BOT_FLOWERS,
+            "food": self.DEMO_BOT_FOOD,
+            "cosmetics": self.DEMO_BOT_COSMETICS,
+            "electronics": self.DEMO_BOT_ELECTRONICS,
         }
 
 

@@ -99,13 +99,13 @@ async def test_demo_webapp_url_in_keyboard(make_callback, db_session):
 
     cb = make_callback(data="demo:cosmetics", user_id=30006)
     with patch("bot.handlers.demo.settings") as mock_settings:
-        mock_settings.demo_urls = {"cosmetics": "https://demo.grammerce.io/cosmetics"}
+        mock_settings.demo_urls = {"cosmetics": "https://t.me/grammerce_cosmetics_bot"}
         await handle_demo_callback(cb, session=db_session)
 
     cb.message.edit_text.assert_called_once()
     kb = cb.message.edit_text.call_args.kwargs.get("reply_markup")
     assert kb is not None
     flat_buttons = [btn for row in kb.inline_keyboard for btn in row]
-    webapp_buttons = [b for b in flat_buttons if b.web_app is not None]
-    assert len(webapp_buttons) == 1
-    assert webapp_buttons[0].web_app.url == "https://demo.grammerce.io/cosmetics"
+    url_buttons = [b for b in flat_buttons if b.url is not None]
+    assert len(url_buttons) == 1
+    assert url_buttons[0].url == "https://t.me/grammerce_cosmetics_bot"
