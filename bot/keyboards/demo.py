@@ -3,10 +3,10 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from bot.locales import t
 
 _NICHES = [
-    ("coffee", "niche_coffee"),
+    # ("coffee", "niche_coffee"),      # TODO: добавить когда будет демо-бот
     ("clothes", "niche_clothes"),
     ("flowers", "niche_flowers"),
-    ("food", "niche_food"),
+    # ("food", "niche_food"),           # TODO: добавить когда будет демо-бот
     ("cosmetics", "niche_cosmetics"),
     ("electronics", "niche_electronics"),
 ]

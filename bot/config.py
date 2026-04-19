@@ -18,10 +18,10 @@ class Settings(BaseSettings):
     @property
     def demo_urls(self) -> dict[str, str]:
         return {
-            "coffee": self.DEMO_BOT_COFFEE,
+            # "coffee": self.DEMO_BOT_COFFEE,      # TODO: включить когда будет демо-бот
             "clothes": self.DEMO_BOT_CLOTHES,
             "flowers": self.DEMO_BOT_FLOWERS,
-            "food": self.DEMO_BOT_FOOD,
+            # "food": self.DEMO_BOT_FOOD,           # TODO: включить когда будет демо-бот
             "cosmetics": self.DEMO_BOT_COSMETICS,
             "electronics": self.DEMO_BOT_ELECTRONICS,
         }
