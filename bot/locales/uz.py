@@ -22,11 +22,12 @@ texts: dict[str, str] = {
     "open_demo": "🛍 Demo-do'konni ochish",
     "back": "◀️ Orqaga",
     # registration
-    "register_text": (
-        "🚀 *Hoziroq o'z do'koningizni yarating!*\n\n"
-        "Ro'yxatdan o'tish 2 daqiqa oladi. Shundan so'ng do'koningiz 24 soat ichida tayyor bo'ladi."
+    "register_link_text": (
+        "Quyidagi tugmani bosing — platformada avtomatik "
+        "ro'yxatdan o'tasiz. Havola 5 daqiqa amal qiladi."
     ),
-    "register_btn": "✅ Ro'yxatdan o'tish",
+    "register_link_btn": "✅ Platformani ochish",
+    "register_error": "⚠️ Havola yaratib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
     # support
     "support_text": "Qanday yordam bera olaman? Savol tanlang yoki operator bilan gaplashing:",
     "faq_price": "💰 Narxi qancha?",
