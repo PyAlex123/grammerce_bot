@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     SUPPORT_CHAT_ID: int
 
+    PLATFORM_URL: str
+    PLATFORM_BOT_SHARED_SECRET: str
+
     DEMO_BOT_COFFEE: str = "https://t.me/grammerce_coffee_bot"
     DEMO_BOT_CLOTHES: str = "https://t.me/grammerce_clothes_bot"
     DEMO_BOT_FLOWERS: str = "https://t.me/grammerce_flowers_bot"
