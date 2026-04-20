@@ -33,13 +33,13 @@ async def send_auth_link(
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=t(lang, "register_link_btn"), url=consume_url)]
+            [InlineKeyboardButton(text=t(lang, "cta_open_platform_btn"), url=consume_url)]
         ]
     )
     await crud.log_event(
         session, user, "register_click", {"consume_url": consume_url}
     )
-    await message.answer(t(lang, "register_link_text"), reply_markup=keyboard)
+    await message.answer(t(lang, "cta_create_shop_prompt"), reply_markup=keyboard)
 
 
 @router.message(F.text.in_(_BTN_CREATE))

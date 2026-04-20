@@ -46,7 +46,51 @@ async def test_faq_price_answer(make_callback, db_session):
     await handle_faq(cb, state=state, session=db_session)
     cb.message.answer.assert_called_once()
     text = cb.message.answer.call_args[0][0]
-    assert "Стоимость" in text or "стоит" in text.lower()
+    assert "390 000" in text
+    assert "7 дней" in text
+    assert cb.message.answer.call_args.kwargs.get("reply_markup") is None
+
+
+@pytest.mark.asyncio
+async def test_faq_answers_have_no_back_button(make_callback, db_session):
+    from bot.db.crud import get_or_create_user, set_language
+    for i, topic in enumerate(["price", "setup", "terms", "api"], start=40020):
+        user, _ = await get_or_create_user(db_session, i)
+        await set_language(db_session, user, "ru")
+        await db_session.commit()
+
+        cb = make_callback(data=f"faq:{topic}", user_id=i)
+        state = _make_state()
+        await handle_faq(cb, state=state, session=db_session)
+        assert cb.message.answer.call_args.kwargs.get("reply_markup") is None, (
+            f"FAQ answer for topic={topic} must not include a reply markup"
+        )
+
+
+@pytest.mark.asyncio
+async def test_faq_answers_do_not_contain_forbidden_phrases(make_callback, db_session):
+    from bot.db.crud import get_or_create_user, set_language
+
+    forbidden = ["$", "docs.grammerce.io", "/pricing", "5 минут", "14 дней"]
+    for i, (topic, lang) in enumerate(
+        [
+            ("price", "ru"), ("setup", "ru"), ("terms", "ru"), ("api", "ru"),
+            ("price", "uz"), ("setup", "uz"), ("terms", "uz"), ("api", "uz"),
+        ],
+        start=40030,
+    ):
+        user, _ = await get_or_create_user(db_session, i)
+        await set_language(db_session, user, lang)
+        await db_session.commit()
+
+        cb = make_callback(data=f"faq:{topic}", user_id=i)
+        state = _make_state()
+        await handle_faq(cb, state=state, session=db_session)
+        text = cb.message.answer.call_args[0][0]
+        for phrase in forbidden:
+            assert phrase not in text, (
+                f"FAQ answer for topic={topic} lang={lang} must not contain '{phrase}', got: {text!r}"
+            )
 
 
 @pytest.mark.asyncio

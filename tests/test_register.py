@@ -148,4 +148,4 @@ async def test_send_auth_link_uses_uz_locale_when_user_language_is_uz(
 
     text = message.answer.call_args[0][0]
     assert "Platformani ochish" not in text  # that's the button, not the message
-    assert "5 daqiqa" in text
+    assert "2 daqiqa" in text
