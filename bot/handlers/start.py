@@ -1,7 +1,7 @@
 import logging
 
 from aiogram import F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.filters.command import CommandObject
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,6 +62,15 @@ async def cmd_start(
             t(None, "choose_language"),
             reply_markup=language_keyboard(),
         )
+
+
+@router.message(Command("chatid"))
+async def cmd_chatid(message: Message) -> None:
+    await message.answer(
+        f"Chat ID: <code>{message.chat.id}</code>\n"
+        f"User ID: <code>{message.from_user.id}</code>",
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(F.data.startswith("lang:"))
