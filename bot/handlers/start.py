@@ -41,6 +41,12 @@ async def cmd_start(
         username=message.from_user.username,
     )
 
+    if command.args == "register":
+        from bot.handlers.register import send_auth_link
+
+        await send_auth_link(message, session, user)
+        return
+
     utm = parse_utm(command.args)
     if utm:
         await crud.save_utm(
