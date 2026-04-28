@@ -23,9 +23,10 @@ texts: dict[str, str] = {
     "back": "◀️ Orqaga",
     # create-shop CTA
     "cta_create_shop_prompt": (
-        "Do'kon yaratish uchun quyidagi tugmani bosing. Ro'yxatdan o'tish 2 daqiqa vaqt oladi."
+        "Quyidagi variantni tanlang. Ro'yxatdan o'tish 2 daqiqa vaqt oladi."
     ),
-    "cta_open_platform_btn": "✅ Platformani ochish",
+    "cta_register_btn": "📝 Ro'yxatdan o'tish",
+    "cta_login_tg_btn": "✅ Telegram orqali kirish",
     "register_error": "⚠️ Havola yaratib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
     # support
     "support_intro": "Nima yordam bera olamiz? Savolni tanlang yoki operatorga yozing:",

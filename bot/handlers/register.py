@@ -33,7 +33,8 @@ async def send_auth_link(
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=t(lang, "cta_open_platform_btn"), url=consume_url)]
+            [InlineKeyboardButton(text=t(lang, "cta_register_btn"), url="https://grammerce.io/login")],
+            [InlineKeyboardButton(text=t(lang, "cta_login_tg_btn"), url=consume_url)],
         ]
     )
     await crud.log_event(
