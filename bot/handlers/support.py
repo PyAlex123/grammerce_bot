@@ -2,7 +2,7 @@ import logging
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.config import settings
@@ -78,15 +78,51 @@ async def receive_support_message(
     await crud.create_ticket(session, user, message.text or "")
     await crud.log_event(session, user, "support_ticket", {"length": len(message.text or "")})
 
+    raw_username = message.from_user.username or str(message.from_user.id)
+    start_btn = InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(
+                text=RU["operator_start_btn"],
+                callback_data=f"operator:start:{message.from_user.id}:{raw_username}",
+            )
+        ]]
+    )
     try:
-        header = t(lang, "ticket_header").format(
-            username=message.from_user.username or message.from_user.id,
+        header = t("ru", "ticket_header").format(
+            username=raw_username,
             tg_id=message.from_user.id,
             lang=user.language,
         )
-        await bot.send_message(settings.SUPPORT_CHAT_ID, header + (message.text or ""))
+        await bot.send_message(
+            settings.SUPPORT_CHAT_ID,
+            header + (message.text or ""),
+            reply_markup=start_btn,
+        )
     except Exception:
-        logger.error("Failed to forward ticket to support chat", exc_info=True)
+        logger.error(
+            "Failed to forward ticket to support chat "
+            "(admin may not have started the bot — chat_id=%s)",
+            settings.SUPPORT_CHAT_ID,
+            exc_info=True,
+        )
 
     await state.clear()
     await message.answer(t(lang, "ticket_received"))
+
+
+@router.message(F.text)
+async def relay_user_to_operator(message: Message, bot: Bot) -> None:
+    from bot.handlers.operator import _active_user_ids  # lazy — avoids circular import
+
+    if message.from_user is None:
+        return
+    if message.from_user.id not in _active_user_ids:
+        return
+
+    prefix = RU["user_relay_prefix"].format(
+        username=message.from_user.username or str(message.from_user.id)
+    )
+    try:
+        await bot.send_message(settings.SUPPORT_CHAT_ID, prefix + (message.text or ""))
+    except Exception:
+        logger.error("Failed to relay user message to operator", exc_info=True)

@@ -66,4 +66,17 @@ texts: dict[str, str] = {
         "---\n"
     ),
     "error_generic": "⚠️ Nimadir noto'g'ri ketdi. Iltimos qayta urinib ko'ring.",
+    # operator live-chat
+    "operator_start_btn": "💬 Foydalanuvchi bilan chatni boshlash",
+    "operator_end_btn": "🔴 Chatni tugatish",
+    "operator_chat_started_admin": (
+        "@{username} (tg_id: {tg_id}) bilan chat faol.\n\n"
+        "Uning xabarlari shu yerga keladi. /endchat — tugatish."
+    ),
+    "operator_chat_started_user": "Operator ulandi! Savolingizni yozishingiz mumkin.",
+    "operator_chat_ended_admin": "Chat tugadi.",
+    "operator_chat_ended_user": "Operator chatni tugatdi. Savollaringiz bo'lsa — qayta yozing.",
+    "operator_relay_prefix": "👤 Operator: ",
+    "user_relay_prefix": "👤 @{username}: ",
+    "operator_no_active_chat": "Foydalanuvchi bilan faol chat yo'q.",
 }

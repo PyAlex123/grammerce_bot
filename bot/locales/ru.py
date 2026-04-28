@@ -66,4 +66,17 @@ texts: dict[str, str] = {
         "---\n"
     ),
     "error_generic": "⚠️ Что-то пошло не так. Попробуйте ещё раз.",
+    # operator live-chat
+    "operator_start_btn": "💬 Начать чат с пользователем",
+    "operator_end_btn": "🔴 Завершить чат",
+    "operator_chat_started_admin": (
+        "Чат с @{username} (tg_id: {tg_id}) активен.\n\n"
+        "Его сообщения будут приходить сюда. /endchat — завершить."
+    ),
+    "operator_chat_started_user": "Оператор подключился! Можете написать ваш вопрос.",
+    "operator_chat_ended_admin": "Чат завершён.",
+    "operator_chat_ended_user": "Оператор завершил чат. Если остались вопросы — напишите снова.",
+    "operator_relay_prefix": "👤 Оператор: ",
+    "user_relay_prefix": "👤 @{username}: ",
+    "operator_no_active_chat": "Нет активного чата с пользователем.",
 }
