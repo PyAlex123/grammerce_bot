@@ -18,6 +18,7 @@ class BotUser(Base):
     utm_campaign: Mapped[str | None] = mapped_column(String(128), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_active_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    registered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     demo_views: Mapped[list["BotDemoView"]] = relationship(back_populates="user")
     tickets: Mapped[list["BotSupportTicket"]] = relationship(back_populates="user")

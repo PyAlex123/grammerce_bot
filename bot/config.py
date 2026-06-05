@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     PLATFORM_URL: str
     PLATFORM_BOT_SHARED_SECRET: str
 
+    # Inbound webhook server (platform → bot lifecycle callbacks).
+    # Auth reuses PLATFORM_BOT_SHARED_SECRET via the X-Bot-Secret header.
+    BOT_WEBHOOK_HOST: str = "0.0.0.0"
+    BOT_WEBHOOK_PORT: int = 8080
+
     DEMO_BOT_COFFEE: str = "https://t.me/grammerce_coffee_bot"
     DEMO_BOT_CLOTHES: str = "https://t.me/grammerce_clothes_bot"
     DEMO_BOT_FLOWERS: str = "https://t.me/grammerce_flowers_bot"

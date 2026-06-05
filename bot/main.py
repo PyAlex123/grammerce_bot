@@ -3,11 +3,13 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiohttp import web
 
 from bot.config import settings
 from bot.db.engine import create_tables, get_session_factory, init_engine
 from bot.handlers import demo, operator, register, start, support
 from bot.middlewares.events import EventsMiddleware
+from bot.web import create_app
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,8 +35,22 @@ async def main() -> None:
     dp.include_router(register.router)
     dp.include_router(support.router)
 
+    app = create_app(bot, session_factory)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, settings.BOT_WEBHOOK_HOST, settings.BOT_WEBHOOK_PORT)
+    await site.start()
+    logger.info(
+        "Webhook server listening on %s:%s",
+        settings.BOT_WEBHOOK_HOST,
+        settings.BOT_WEBHOOK_PORT,
+    )
+
     logger.info("Starting Grammerce bot (long polling)...")
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    try:
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    finally:
+        await runner.cleanup()
 
 
 if __name__ == "__main__":

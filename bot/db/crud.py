@@ -37,6 +37,29 @@ async def get_or_create_user(
     return user, False
 
 
+async def get_user_by_telegram_id(
+    session: AsyncSession, telegram_id: int
+) -> BotUser | None:
+    """Read-only lookup by telegram_id. Returns None if not found."""
+    result = await session.execute(
+        select(BotUser).where(BotUser.telegram_id == telegram_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def mark_registered(session: AsyncSession, user: BotUser) -> bool:
+    """Mark the user as registered on the platform.
+
+    Returns True if this is the first time (caller should notify the admin),
+    False if the user was already marked (duplicate — stay silent).
+    """
+    if user.registered_at is not None:
+        return False
+    user.registered_at = datetime.utcnow()
+    await session.flush()
+    return True
+
+
 async def set_language(session: AsyncSession, user: BotUser, language: str) -> None:
     user.language = language
     await session.flush()

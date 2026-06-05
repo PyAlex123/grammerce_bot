@@ -80,4 +80,12 @@ texts: dict[str, str] = {
     "operator_relay_prefix": "👤 Оператор: ",
     "user_relay_prefix": "👤 @{username}: ",
     "operator_no_active_chat": "Нет активного чата с пользователем.",
+    # admin notification — new platform registration
+    "admin_new_registration": (
+        "🎉 Новая регистрация на платформе!\n\n"
+        "Имя: {name}\n"
+        "Источник: {utm}\n"
+        "Время: {time}"
+    ),
+    "admin_utm_unknown": "не указан",
 }

@@ -5,6 +5,8 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    ports:
+      - "8080:8080"  # inbound webhook (platform → bot); keep in sync with BOT_WEBHOOK_PORT
     depends_on:
       db:
         condition: service_healthy

@@ -27,9 +27,12 @@ async def test_create_shop_issues_link_and_sends_button(
     message.answer.assert_called_once()
     kwargs = message.answer.call_args.kwargs
     keyboard = kwargs["reply_markup"]
-    button = keyboard.inline_keyboard[0][0]
-    assert button.url == CONSUME_URL
-    assert "Открыть платформу" in button.text
+    # Two buttons: web register (grammerce.io/login) + one-shot Telegram login
+    register_btn = keyboard.inline_keyboard[0][0]
+    tg_login_btn = keyboard.inline_keyboard[1][0]
+    assert register_btn.url == "https://grammerce.io/login"
+    assert tg_login_btn.url == CONSUME_URL
+    assert "Telegram" in tg_login_btn.text
 
 
 @pytest.mark.asyncio
@@ -107,7 +110,7 @@ async def test_start_register_deeplink_triggers_auth_link(
     mock_issue.assert_awaited_once_with(message.from_user)
     message.answer.assert_called_once()
     keyboard = message.answer.call_args.kwargs["reply_markup"]
-    assert keyboard.inline_keyboard[0][0].url == CONSUME_URL
+    assert keyboard.inline_keyboard[1][0].url == CONSUME_URL
 
 
 @pytest.mark.asyncio
