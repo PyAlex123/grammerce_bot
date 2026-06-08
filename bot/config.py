@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     PLATFORM_URL: str
     PLATFORM_BOT_SHARED_SECRET: str
 
+    # Telegram Mini App (WebApp) URL of the platform cabinet. When set, the
+    # "Создать магазин" CTA and lifecycle buttons become WebApp buttons that
+    # auto-login the user via Telegram initData (no password, no consume_url).
+    # When empty, the bot falls back to the consume_url one-shot link flow.
+    PLATFORM_WEBAPP_URL: str = ""
+
     # Inbound webhook server (platform → bot lifecycle callbacks).
     # Auth reuses PLATFORM_BOT_SHARED_SECRET via the X-Bot-Secret header.
     BOT_WEBHOOK_HOST: str = "0.0.0.0"
