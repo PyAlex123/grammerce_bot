@@ -27,19 +27,19 @@ async def main() -> None:
 
     bot = Bot(token=settings.BOT_TOKEN)
 
-    # Persistent menu button (left of the input field) → WebApp "Кабинет".
+    # Optional persistent menu button (left of the input field) → WebApp "Кабинет".
+    # Only when PLATFORM_WEBAPP_URL is configured; wrapped so a bad value can't
+    # crash startup. The create-shop flow does NOT depend on this.
     if settings.PLATFORM_WEBAPP_URL:
-        await bot.set_chat_menu_button(
-            menu_button=MenuButtonWebApp(
-                text="Кабинет",
-                web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
+        try:
+            await bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text="Кабинет",
+                    web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
+                )
             )
-        )
-    else:
-        logger.warning(
-            "PLATFORM_WEBAPP_URL is not set — 'Создать магазин' falls back to a "
-            "plain site link instead of a Telegram Mini App (WebApp). Set it in .env."
-        )
+        except Exception:
+            logger.error("Failed to set WebApp menu button", exc_info=True)
 
     dp = Dispatcher(storage=MemoryStorage())
 

@@ -8,25 +8,11 @@ _OTHER_LANG = {"ru": "uz", "uz": "ru"}
 
 
 def _create_shop_button(lang: str) -> InlineKeyboardButton:
-    """Primary CTA — a single WebApp button (Mini App, initData auto-login).
-
-    When PLATFORM_WEBAPP_URL isn't configured yet, falls back to a plain site
-    link so the bot never crashes — but the intended mode is the WebApp button.
-    """
-    if settings.PLATFORM_WEBAPP_URL:
-        return InlineKeyboardButton(
-            text=t(lang, "btn_create_shop"),
-            web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
-        )
+    """Primary CTA. Tapping it issues a one-shot login link and opens it inside
+    Telegram (WebApp / Mini App) — handled by handlers/register (menu:create)."""
     return InlineKeyboardButton(
-        text=t(lang, "btn_create_shop"),
-        url=f"{settings.PLATFORM_URL.rstrip('/')}/login",
+        text=t(lang, "btn_create_shop"), callback_data="menu:create"
     )
-
-
-def create_shop_keyboard(lang: str) -> InlineKeyboardMarkup:
-    """One-button keyboard with the WebApp create-shop CTA."""
-    return InlineKeyboardMarkup(inline_keyboard=[[_create_shop_button(lang)]])
 
 
 def welcome_keyboard(lang: str) -> InlineKeyboardMarkup:
@@ -44,23 +30,18 @@ def welcome_keyboard(lang: str) -> InlineKeyboardMarkup:
     )
 
 
-def cabinet_button(lang: str, label_key: str) -> InlineKeyboardMarkup | None:
-    """Single-button keyboard that opens the platform cabinet.
+def webapp_button(lang: str, label_key: str, url: str) -> InlineKeyboardMarkup:
+    """Single-button keyboard that opens `url` inside Telegram (WebApp), not the browser."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(text=t(lang, label_key), web_app=WebAppInfo(url=url))
+        ]]
+    )
 
-    WebApp button when PLATFORM_WEBAPP_URL is set; otherwise a URL button to the
-    platform login page. Returns None when no URL is configured at all, so callers
-    can send a plain message without a broken button.
-    """
-    if settings.PLATFORM_WEBAPP_URL:
-        button = InlineKeyboardButton(
-            text=t(lang, label_key),
-            web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
-        )
-    elif settings.PLATFORM_URL:
-        button = InlineKeyboardButton(
-            text=t(lang, label_key),
-            url=f"{settings.PLATFORM_URL.rstrip('/')}/login",
-        )
-    else:
+
+def cabinet_button(lang: str, label_key: str) -> InlineKeyboardMarkup | None:
+    """Lifecycle 'open cabinet' button — opens the platform inside Telegram (WebApp)."""
+    url = settings.PLATFORM_WEBAPP_URL or settings.PLATFORM_URL
+    if not url:
         return None
-    return InlineKeyboardMarkup(inline_keyboard=[[button]])
+    return webapp_button(lang, label_key, url)
