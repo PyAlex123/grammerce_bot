@@ -7,10 +7,21 @@ texts: dict[str, str] = {
         "Мы помогаем предпринимателям создавать онлайн-магазины быстро и без навыков разработки."
     ),
     "menu": "Главное меню 👇",
+    # personalised first-screen greeting
+    "start_welcome": (
+        "Привет, {name}! 👋\n"
+        "Grammerce — ваш магазин в Telegram за 2 минуты. "
+        "Без сайта и разработчиков, 0% комиссии с продаж.\n\n"
+        "✓ Готовая витрина и каталог\n"
+        "✓ Оплата Click / Payme / Uzum\n"
+        "✓ Заказы и клиенты в одном месте\n\n"
+        "Демо · Поддержка · grammerce.io"
+    ),
     # main menu buttons
     "btn_create_shop": "🏪 Создать магазин",
-    "btn_demo": "👀 Смотреть демо",
+    "btn_demo": "👀 Демо",
     "btn_support": "💬 Поддержка",
+    "btn_lang_toggle": "🇺🇿 O'zbekcha",
     # demo
     "choose_niche": "Выберите нишу — откроем демо-магазин для вас:",
     "niche_coffee": "☕ Кофейня",

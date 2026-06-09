@@ -29,6 +29,20 @@ async def show_niches(message: Message, session: AsyncSession) -> None:
     await message.answer(t(lang, "choose_niche"), reply_markup=niches_keyboard(lang))
 
 
+@router.callback_query(F.data == "menu:demo")
+async def open_demo(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Entry point from the welcome-screen inline 'Демо' button."""
+    user, _ = await crud.get_or_create_user(
+        session,
+        telegram_id=callback.from_user.id,
+        username=callback.from_user.username,
+    )
+    lang = user.language or "ru"
+    await crud.log_event(session, user, "menu_view", {"section": "demo"})
+    await callback.message.answer(t(lang, "choose_niche"), reply_markup=niches_keyboard(lang))
+    await callback.answer()
+
+
 @router.callback_query(F.data.startswith("demo:"))
 async def handle_demo_callback(callback: CallbackQuery, session: AsyncSession) -> None:
     niche = callback.data.split(":")[1]

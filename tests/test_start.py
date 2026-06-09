@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from bot.handlers.start import cmd_start, parse_utm, select_language
+from bot.handlers.start import cmd_start, detect_language, parse_utm, select_language
 
 
 # ---------------------------------------------------------------------------
@@ -30,17 +30,50 @@ def test_parse_utm_no_prefix():
 
 
 # ---------------------------------------------------------------------------
+# Unit tests: detect_language
+# ---------------------------------------------------------------------------
+
+def test_detect_language_uz():
+    assert detect_language("uz") == "uz"
+    assert detect_language("uz-UZ") == "uz"
+
+
+def test_detect_language_defaults_to_ru():
+    assert detect_language("en") == "ru"
+    assert detect_language(None) == "ru"
+
+
+# ---------------------------------------------------------------------------
 # Integration tests: /start handler
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_start_new_user_shows_language_buttons(make_message, make_command, db_session):
-    message = make_message(text="/start")
+async def test_start_new_user_shows_personalised_welcome(make_message, make_command, db_session):
+    message = make_message(text="/start", first_name="Алиса")
     command = make_command(args=None)
     await cmd_start(message, command=command, session=db_session)
     message.answer.assert_called_once()
-    call_kwargs = message.answer.call_args
-    assert call_kwargs.kwargs.get("reply_markup") is not None
+    text = message.answer.call_args[0][0]
+    assert "Алиса" in text  # personalised by first_name
+    assert message.answer.call_args.kwargs.get("reply_markup") is not None
+
+    # Language auto-detected and saved (no blocking language screen)
+    from bot.db.crud import get_or_create_user
+    user, _ = await get_or_create_user(db_session, 123456)
+    assert user.language == "ru"
+
+
+@pytest.mark.asyncio
+async def test_start_autodetects_uz_from_language_code(make_message, make_command, db_session):
+    message = make_message(text="/start", user_id=10010, language_code="uz")
+    command = make_command(args=None)
+    await cmd_start(message, command=command, session=db_session)
+
+    from bot.db.crud import get_or_create_user
+    user, _ = await get_or_create_user(db_session, 10010)
+    assert user.language == "uz"
+    text = message.answer.call_args[0][0]
+    assert "Salom" in text
 
 
 @pytest.mark.asyncio
@@ -56,19 +89,20 @@ async def test_start_with_utm_saves_to_db(make_message, make_command, db_session
 
 
 @pytest.mark.asyncio
-async def test_start_returning_user_shows_menu(make_message, make_command, db_session):
+async def test_start_returning_user_shows_welcome(make_message, make_command, db_session):
     from bot.db.crud import get_or_create_user, set_language
     user, _ = await get_or_create_user(db_session, 10002, "returning")
     await set_language(db_session, user, "ru")
     await db_session.commit()
 
-    message = make_message(text="/start", user_id=10002)
+    message = make_message(text="/start", user_id=10002, first_name="Боб")
     command = make_command(args=None)
     await cmd_start(message, command=command, session=db_session)
     message.answer.assert_called_once()
-    # Should show menu, not language selection
+    # Personalised welcome (no language-selection blocker)
     text = message.answer.call_args[0][0]
-    assert "меню" in text.lower() or "Меню" in text
+    assert "Боб" in text
+    assert "grammerce.io" in text
 
 
 @pytest.mark.asyncio
@@ -98,8 +132,8 @@ async def test_select_language_ru(make_callback, db_session):
     from bot.db.crud import get_or_create_user
     user, _ = await get_or_create_user(db_session, 20001)
     assert user.language == "ru"
+    # Toggle re-renders the welcome in place (edit), no extra message
     cb.message.edit_text.assert_called_once()
-    cb.message.answer.assert_called_once()
     cb.answer.assert_called_once()
 
 
@@ -111,6 +145,22 @@ async def test_select_language_uz(make_callback, db_session):
     from bot.db.crud import get_or_create_user
     user, _ = await get_or_create_user(db_session, 20002)
     assert user.language == "uz"
+
+
+@pytest.mark.asyncio
+async def test_language_toggle_rerenders_welcome(make_callback, db_session):
+    from bot.db.crud import get_or_create_user, set_language
+    user, _ = await get_or_create_user(db_session, 20010)
+    await set_language(db_session, user, "ru")
+    await db_session.commit()
+
+    cb = make_callback(data="lang:uz", user_id=20010, first_name="Дима")
+    await select_language(cb, session=db_session)
+
+    text = cb.message.edit_text.call_args[0][0]
+    assert "Salom" in text  # switched to uz greeting
+    assert "Дима" in text
+    assert cb.message.edit_text.call_args.kwargs.get("reply_markup") is not None
 
 
 @pytest.mark.asyncio

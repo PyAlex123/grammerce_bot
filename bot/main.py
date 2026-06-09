@@ -3,6 +3,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 from aiohttp import web
 
 from bot.config import settings
@@ -25,6 +26,16 @@ async def main() -> None:
     session_factory = get_session_factory()
 
     bot = Bot(token=settings.BOT_TOKEN)
+
+    # Persistent menu button (left of the input field) → WebApp "Кабинет".
+    if settings.PLATFORM_WEBAPP_URL:
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="Кабинет",
+                web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
+            )
+        )
+
     dp = Dispatcher(storage=MemoryStorage())
 
     dp.update.middleware(EventsMiddleware(session_factory))

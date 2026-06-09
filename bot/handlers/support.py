@@ -38,6 +38,20 @@ async def show_support(message: Message, session: AsyncSession) -> None:
     await message.answer(t(lang, "support_intro"), reply_markup=support_keyboard(lang))
 
 
+@router.callback_query(F.data == "menu:support")
+async def open_support(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Entry point from the welcome-screen inline 'Поддержка' button."""
+    user, _ = await crud.get_or_create_user(
+        session,
+        telegram_id=callback.from_user.id,
+        username=callback.from_user.username,
+    )
+    lang = user.language or "ru"
+    await crud.log_event(session, user, "menu_view", {"section": "support"})
+    await callback.message.answer(t(lang, "support_intro"), reply_markup=support_keyboard(lang))
+    await callback.answer()
+
+
 @router.callback_query(F.data.startswith("faq:"))
 async def handle_faq(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession

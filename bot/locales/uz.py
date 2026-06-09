@@ -7,10 +7,21 @@ texts: dict[str, str] = {
         "Biz tadbirkorlarga dasturlash bilimlarsiz tez onlayn-do'kon yaratishga yordam beramiz."
     ),
     "menu": "Asosiy menyu 👇",
+    # personalised first-screen greeting
+    "start_welcome": (
+        "Salom, {name}! 👋\n"
+        "Grammerce — 2 daqiqada Telegram'dagi do'koningiz. "
+        "Saytsiz va dasturchisiz, savdodan 0% komissiya.\n\n"
+        "✓ Tayyor vitrina va katalog\n"
+        "✓ Click / Payme / Uzum to'lovi\n"
+        "✓ Buyurtma va mijozlar bir joyda\n\n"
+        "Demo · Yordam · grammerce.io"
+    ),
     # main menu buttons
     "btn_create_shop": "🏪 Do'kon yaratish",
-    "btn_demo": "👀 Demo ko'rish",
-    "btn_support": "💬 Qo'llab-quvvatlash",
+    "btn_demo": "👀 Demo",
+    "btn_support": "💬 Yordam",
+    "btn_lang_toggle": "🇷🇺 Русский",
     # demo
     "choose_niche": "Nishani tanlang — siz uchun demo-do'konni ochamiz:",
     "niche_coffee": "☕ Qahvaxona",

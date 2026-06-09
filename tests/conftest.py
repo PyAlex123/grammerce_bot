@@ -33,6 +33,8 @@ def make_message():
         text: str = "/start",
         user_id: int = 123456,
         username: str = "testuser",
+        first_name: str = "Иван",
+        language_code: str = "ru",
     ):
         msg = MagicMock()
         msg.text = text
@@ -41,7 +43,8 @@ def make_message():
         msg.from_user = MagicMock()
         msg.from_user.id = user_id
         msg.from_user.username = username
-        msg.from_user.language_code = "ru"
+        msg.from_user.first_name = first_name
+        msg.from_user.language_code = language_code
         return msg
     return _make
 
@@ -53,6 +56,7 @@ def make_callback():
         data: str = "lang:ru",
         user_id: int = 123456,
         username: str = "testuser",
+        first_name: str = "Иван",
     ):
         cb = MagicMock()
         cb.data = data
@@ -63,6 +67,7 @@ def make_callback():
         cb.from_user = MagicMock()
         cb.from_user.id = user_id
         cb.from_user.username = username
+        cb.from_user.first_name = first_name
         return cb
     return _make
 

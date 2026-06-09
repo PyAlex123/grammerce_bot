@@ -7,12 +7,26 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db import crud
-from bot.keyboards.language import language_keyboard
-from bot.keyboards.menu import main_menu_keyboard
+from bot.keyboards.menu import welcome_keyboard
 from bot.locales import t
 
 logger = logging.getLogger(__name__)
 router = Router(name="start")
+
+
+def detect_language(language_code: str | None) -> str:
+    """Map a Telegram language_code to a supported locale (uz / ru, default ru)."""
+    if language_code and language_code.lower().startswith("uz"):
+        return "uz"
+    return "ru"
+
+
+async def _send_welcome(message: Message, lang: str) -> None:
+    name = (message.from_user.first_name or "").strip()
+    await message.answer(
+        t(lang, "start_welcome").format(name=name),
+        reply_markup=welcome_keyboard(lang),
+    )
 
 
 def parse_utm(payload: str | None) -> dict[str, str | None]:
@@ -57,17 +71,16 @@ async def cmd_start(
             utm.get("utm_campaign"),
         )
 
-    if user.language:
-        # Returning user — skip language selection, show menu
-        await message.answer(
-            t(user.language, "menu"),
-            reply_markup=main_menu_keyboard(user.language),
-        )
+    # Auto-detect language from Telegram on first contact (no blocking screen).
+    if not user.language:
+        lang = detect_language(message.from_user.language_code)
+        await crud.set_language(session, user, lang)
+        await crud.log_event(session, user, "language_auto", {"language": lang})
     else:
-        await message.answer(
-            t(None, "choose_language"),
-            reply_markup=language_keyboard(),
-        )
+        lang = user.language
+
+    await _send_welcome(message, lang)
+    await crud.log_event(session, user, "menu_view", {"source": "start"})
 
 
 @router.message(Command("chatid"))
@@ -81,6 +94,7 @@ async def cmd_chatid(message: Message) -> None:
 
 @router.callback_query(F.data.startswith("lang:"))
 async def select_language(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Language toggle on the welcome screen — re-render the greeting in place."""
     lang = callback.data.split(":")[1]
     user, _ = await crud.get_or_create_user(
         session,
@@ -90,10 +104,9 @@ async def select_language(callback: CallbackQuery, session: AsyncSession) -> Non
     await crud.set_language(session, user, lang)
     await crud.log_event(session, user, "language_select", {"language": lang})
 
-    await callback.message.edit_text(t(lang, "welcome"))
-    await callback.message.answer(
-        t(lang, "menu"),
-        reply_markup=main_menu_keyboard(lang),
+    name = (callback.from_user.first_name or "").strip()
+    await callback.message.edit_text(
+        t(lang, "start_welcome").format(name=name),
+        reply_markup=welcome_keyboard(lang),
     )
-    await crud.log_event(session, user, "menu_view", {"source": "language_select"})
     await callback.answer()
