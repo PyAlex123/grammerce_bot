@@ -35,6 +35,11 @@ async def main() -> None:
                 web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
             )
         )
+    else:
+        logger.warning(
+            "PLATFORM_WEBAPP_URL is not set — 'Создать магазин' falls back to a "
+            "plain site link instead of a Telegram Mini App (WebApp). Set it in .env."
+        )
 
     dp = Dispatcher(storage=MemoryStorage())
 

@@ -8,8 +8,11 @@ _OTHER_LANG = {"ru": "uz", "uz": "ru"}
 
 
 def _create_shop_button(lang: str) -> InlineKeyboardButton:
-    """Primary CTA. A WebApp button (initData auto-login) when PLATFORM_WEBAPP_URL
-    is configured, otherwise a callback that falls back to the consume_url flow."""
+    """Primary CTA — a single WebApp button (Mini App, initData auto-login).
+
+    When PLATFORM_WEBAPP_URL isn't configured yet, falls back to a plain site
+    link so the bot never crashes — but the intended mode is the WebApp button.
+    """
     if settings.PLATFORM_WEBAPP_URL:
         return InlineKeyboardButton(
             text=t(lang, "btn_create_shop"),
@@ -17,8 +20,13 @@ def _create_shop_button(lang: str) -> InlineKeyboardButton:
         )
     return InlineKeyboardButton(
         text=t(lang, "btn_create_shop"),
-        callback_data="menu:create",
+        url=f"{settings.PLATFORM_URL.rstrip('/')}/login",
     )
+
+
+def create_shop_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """One-button keyboard with the WebApp create-shop CTA."""
+    return InlineKeyboardMarkup(inline_keyboard=[[_create_shop_button(lang)]])
 
 
 def welcome_keyboard(lang: str) -> InlineKeyboardMarkup:

@@ -56,9 +56,9 @@ async def cmd_start(
     )
 
     if command.args == "register":
-        from bot.handlers.register import send_auth_link
+        from bot.handlers.register import send_create_shop_cta
 
-        await send_auth_link(message, session, user)
+        await send_create_shop_cta(message, session, user)
         return
 
     utm = parse_utm(command.args)
