@@ -1,28 +1,10 @@
-from aiogram.types import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
-    WebAppInfo,
-)
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from bot.config import settings
 from bot.locales import t
 
 # Maps current language → target language for the toggle button.
 _OTHER_LANG = {"ru": "uz", "uz": "ru"}
-
-
-def main_menu_keyboard(lang: str) -> ReplyKeyboardMarkup:
-    # Deprecated reply keyboard — replaced by welcome_keyboard (inline) in start.py.
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=t(lang, "btn_create_shop"))],
-            [KeyboardButton(text=t(lang, "btn_demo"))],
-            [KeyboardButton(text=t(lang, "btn_support"))],
-        ],
-        resize_keyboard=True,
-    )
 
 
 def _create_shop_button(lang: str) -> InlineKeyboardButton:
