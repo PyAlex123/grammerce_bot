@@ -38,32 +38,23 @@ texts: dict[str, str] = {
     ),
     "cta_open_platform_btn": "✅ Platformani ochish",
     "register_error": "⚠️ Havola yaratib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
-    # support
-    "support_intro": "Nima yordam bera olamiz? Savolni tanlang yoki operatorga yozing:",
+    # support — 3 savol: Narx / Muddat / Operator
+    "support_intro": "Qanday yordam beramiz? Savolni tanlang yoki operatorga yozing:",
     # FAQ button labels
     "faq_price_btn": "💰 Narxi qancha?",
-    "faq_setup_fee_btn": "🛠 Setup Fee",
-    "faq_timeline_btn": "⏱ Muddatlari",
-    "faq_api_btn": "🔌 API bormi?",
+    "faq_timeline_btn": "⏱ Ishga tushirish muddati",
     "faq_live_operator_btn": "👤 Jonli operator",
-    # FAQ answers
+    # FAQ answers (Setup Fee narx javobiga kiritilgan; API faqat operator orqali)
     "faq_price": (
-        "Obuna oyiga 390 000 so'mdan. Uchta tarif: Start (390 000), "
-        "Business (650 000), Premium (910 000). Barcha tariflar — 7 kun bepul.\n"
-        "Batafsil: grammerce.io"
-    ),
-    "faq_setup_fee": (
-        "Do'konni ishga tushirish uchun bir martalik to'lov: tovarlar yuklash, "
-        "Click/Payme/Uzum sozlash, Telegram-bot yig'ish, xodimlarni o'qitish.\n"
-        "Birinchi 100 mijoz uchun — 3 900 000 so'm (6 500 000 o'rniga)."
+        "Obuna oyiga 390 000 so'mdan: Start 390 000 · Business 650 000 · Premium 910 000. "
+        "Barcha tariflar — 7 kun bepul.\n"
+        "Alohida, bir martalik — ulanish: do'kon dizayni, tovarlarni yuklash, "
+        "to'lovni sozlash, o'qitish.\n"
+        "Savdodan komissiya — 0%. Batafsil: grammerce.io"
     ),
     "faq_timeline": (
-        "Tayyor do'kon Setup Fee to'langandan keyin 1–2 kun ichida. "
-        "Menejer tovarlarni yuklaydi va integratsiyalarni sozlaydi — dasturlash shart emas."
-    ),
-    "faq_api": (
-        "Ochiq API ishlab chiqilmoqda. Hozircha tayyor integratsiyalar orqali ishlaymiz: "
-        "Click, Payme, Uzum, MoySklad, Billz, Jowi, Azma Finance."
+        "Ishga tushirish 1–2 kunda: siz ariza qoldirasiz, biz do'konni yig'amiz va "
+        "xodimni o'qitamiz. Keyin u 24/7 ishlaydi."
     ),
     "ask_question": (
         "✍️ Savolingizni yozing — operator tez orada javob beradi.\n\n"

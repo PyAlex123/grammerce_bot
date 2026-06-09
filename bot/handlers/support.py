@@ -20,9 +20,7 @@ _BTN_SUPPORT = {RU["btn_support"], UZ["btn_support"]}
 
 _FAQ_ANSWERS = {
     "price": "faq_price",
-    "setup": "faq_setup_fee",
     "terms": "faq_timeline",
-    "api": "faq_api",
 }
 
 

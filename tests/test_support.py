@@ -30,8 +30,10 @@ async def test_show_support_sends_keyboard(make_message, db_session):
     assert kb is not None
     flat_buttons = [btn for row in kb.inline_keyboard for btn in row]
     cb_data = [b.callback_data for b in flat_buttons]
-    assert "faq:price" in cb_data
-    assert "faq:operator" in cb_data
+    # Exactly 3 questions now — Цена / Сроки / Оператор
+    assert cb_data == ["faq:price", "faq:terms", "faq:operator"]
+    assert "faq:setup" not in cb_data
+    assert "faq:api" not in cb_data
 
 
 @pytest.mark.asyncio
@@ -54,7 +56,7 @@ async def test_faq_price_answer(make_callback, db_session):
 @pytest.mark.asyncio
 async def test_faq_answers_have_no_back_button(make_callback, db_session):
     from bot.db.crud import get_or_create_user, set_language
-    for i, topic in enumerate(["price", "setup", "terms", "api"], start=40020):
+    for i, topic in enumerate(["price", "terms"], start=40020):
         user, _ = await get_or_create_user(db_session, i)
         await set_language(db_session, user, "ru")
         await db_session.commit()
@@ -71,11 +73,11 @@ async def test_faq_answers_have_no_back_button(make_callback, db_session):
 async def test_faq_answers_do_not_contain_forbidden_phrases(make_callback, db_session):
     from bot.db.crud import get_or_create_user, set_language
 
-    forbidden = ["$", "docs.grammerce.io", "/pricing", "5 минут", "14 дней"]
+    forbidden = ["$", "docs.grammerce.io", "/pricing", "5 минут", "14 дней", "Setup Fee"]
     for i, (topic, lang) in enumerate(
         [
-            ("price", "ru"), ("setup", "ru"), ("terms", "ru"), ("api", "ru"),
-            ("price", "uz"), ("setup", "uz"), ("terms", "uz"), ("api", "uz"),
+            ("price", "ru"), ("terms", "ru"),
+            ("price", "uz"), ("terms", "uz"),
         ],
         start=40030,
     ):
@@ -96,7 +98,7 @@ async def test_faq_answers_do_not_contain_forbidden_phrases(make_callback, db_se
 @pytest.mark.asyncio
 async def test_faq_all_topics_have_answers(make_callback, db_session):
     from bot.db.crud import get_or_create_user, set_language
-    for i, topic in enumerate(["price", "setup", "terms", "api"], start=40010):
+    for i, topic in enumerate(["price", "terms"], start=40010):
         user, _ = await get_or_create_user(db_session, i)
         await set_language(db_session, user, "ru")
         await db_session.commit()
