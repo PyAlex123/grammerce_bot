@@ -32,12 +32,11 @@ texts: dict[str, str] = {
     "niche_electronics": "📱 Elektronika",
     "open_demo": "🛍 Demo-do'konni ochish",
     "back": "◀️ Orqaga",
-    # create-shop CTA
+    # create-shop CTA (one button — WebApp when configured, else consume_url link)
     "cta_create_shop_prompt": (
-        "Quyidagi variantni tanlang. Ro'yxatdan o'tish 2 daqiqa vaqt oladi."
+        "Do'kon yaratish uchun quyidagi tugmani bosing. Ro'yxatdan o'tish 2 daqiqa vaqt oladi."
     ),
-    "cta_register_btn": "📝 Ro'yxatdan o'tish",
-    "cta_login_tg_btn": "✅ Telegram orqali kirish",
+    "cta_open_platform_btn": "✅ Platformani ochish",
     "register_error": "⚠️ Havola yaratib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
     # support
     "support_intro": "Nima yordam bera olamiz? Savolni tanlang yoki operatorga yozing:",

@@ -32,12 +32,11 @@ texts: dict[str, str] = {
     "niche_electronics": "📱 Электроника",
     "open_demo": "🛍 Открыть демо-магазин",
     "back": "◀️ Назад",
-    # create-shop CTA
+    # create-shop CTA (one button — WebApp when configured, else consume_url link)
     "cta_create_shop_prompt": (
-        "Выберите способ ниже. Регистрация займёт 2 минуты."
+        "Для создания магазина нажмите кнопку ниже. Регистрация займёт 2 минуты."
     ),
-    "cta_register_btn": "📝 Зарегистрироваться",
-    "cta_login_tg_btn": "✅ Войти через Telegram",
+    "cta_open_platform_btn": "✅ Открыть платформу",
     "register_error": "⚠️ Не удалось создать ссылку. Попробуйте чуть позже.",
     # support
     "support_intro": "Чем можем помочь? Выберите вопрос или напишите оператору:",

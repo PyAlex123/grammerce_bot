@@ -11,10 +11,15 @@ from bot.services.platform_auth import PlatformAuthError
 
 
 CONSUME_URL = "https://grammerce.io/api/auth/telegram/consume?token=test-uuid"
+WEBAPP_URL = "https://grammerce.io/app"
 
+
+# ---------------------------------------------------------------------------
+# consume_url fallback mode (PLATFORM_WEBAPP_URL unset — the test env default)
+# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_create_shop_issues_link_and_sends_button(
+async def test_create_shop_issues_single_link_button(
     make_message, db_session, monkeypatch
 ):
     mock_issue = AsyncMock(return_value=CONSUME_URL)
@@ -25,14 +30,11 @@ async def test_create_shop_issues_link_and_sends_button(
 
     mock_issue.assert_awaited_once_with(message.from_user)
     message.answer.assert_called_once()
-    kwargs = message.answer.call_args.kwargs
-    keyboard = kwargs["reply_markup"]
-    # Two buttons: web register (grammerce.io/login) + one-shot Telegram login
-    register_btn = keyboard.inline_keyboard[0][0]
-    tg_login_btn = keyboard.inline_keyboard[1][0]
-    assert register_btn.url == "https://grammerce.io/login"
-    assert tg_login_btn.url == CONSUME_URL
-    assert "Telegram" in tg_login_btn.text
+    keyboard = message.answer.call_args.kwargs["reply_markup"]
+    buttons = [b for row in keyboard.inline_keyboard for b in row]
+    # One button only — no register/login fork
+    assert len(buttons) == 1
+    assert buttons[0].url == CONSUME_URL
 
 
 @pytest.mark.asyncio
@@ -110,7 +112,7 @@ async def test_start_register_deeplink_triggers_auth_link(
     mock_issue.assert_awaited_once_with(message.from_user)
     message.answer.assert_called_once()
     keyboard = message.answer.call_args.kwargs["reply_markup"]
-    assert keyboard.inline_keyboard[1][0].url == CONSUME_URL
+    assert keyboard.inline_keyboard[0][0].url == CONSUME_URL
 
 
 @pytest.mark.asyncio
@@ -152,3 +154,45 @@ async def test_send_auth_link_uses_uz_locale_when_user_language_is_uz(
     text = message.answer.call_args[0][0]
     assert "Platformani ochish" not in text  # that's the button, not the message
     assert "2 daqiqa" in text
+
+
+# ---------------------------------------------------------------------------
+# WebApp mode (PLATFORM_WEBAPP_URL set — Mini App auto-login)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_create_shop_webapp_mode_sends_webapp_button(
+    make_message, db_session, monkeypatch
+):
+    monkeypatch.setattr("bot.handlers.register.settings.PLATFORM_WEBAPP_URL", WEBAPP_URL)
+    mock_issue = AsyncMock()
+    monkeypatch.setattr("bot.handlers.register.issue_auth_link", mock_issue)
+
+    message = make_message(text="🏪 Создать магазин", user_id=30100)
+    await handle_create_shop(message, session=db_session)
+
+    # WebApp mode must NOT hit the platform for a consume_url
+    mock_issue.assert_not_called()
+    keyboard = message.answer.call_args.kwargs["reply_markup"]
+    buttons = [b for row in keyboard.inline_keyboard for b in row]
+    assert len(buttons) == 1
+    assert buttons[0].web_app is not None
+    assert buttons[0].web_app.url == WEBAPP_URL
+
+
+@pytest.mark.asyncio
+async def test_create_shop_webapp_mode_logs_webapp_mode(
+    make_message, db_session, monkeypatch
+):
+    monkeypatch.setattr("bot.handlers.register.settings.PLATFORM_WEBAPP_URL", WEBAPP_URL)
+
+    message = make_message(text="🏪 Создать магазин", user_id=30101)
+    await handle_create_shop(message, session=db_session)
+    await db_session.commit()
+
+    result = await db_session.execute(
+        sa_select(BotEvent).where(BotEvent.event_type == "register_click")
+    )
+    events = result.scalars().all()
+    assert len(events) == 1
+    assert events[0].payload == {"mode": "webapp"}
