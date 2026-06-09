@@ -1,5 +1,9 @@
 # Telegram Auth — интеграция бота с платформой Grammerce
 
+> ⚠️ Ветка `Redesign`: главная кнопка теперь **WebApp (Mini App)** с авто-логином
+> по `initData`, когда задан `PLATFORM_WEBAPP_URL`. Описанный ниже `consume_url`-флоу
+> остаётся **fallback** при пустом `PLATFORM_WEBAPP_URL`. См. `mdS/redesign_integration.md`.
+
 ## Статус
 
 ✅ **Реализовано** на ветке `tgauth` (Вариант Б — одноразовый токен).
