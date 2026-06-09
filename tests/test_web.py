@@ -14,6 +14,8 @@ from bot.web import create_app
 # Matches PLATFORM_BOT_SHARED_SECRET set in the root conftest.py
 SECRET = "test-secret"
 ENDPOINT = "/api/bot/user-registered"
+ORDER_ENDPOINT = "/api/bot/new-order"
+LOW_ENDPOINT = "/api/bot/low-products"
 
 
 @pytest.fixture
@@ -35,7 +37,7 @@ async def client(factory):
 
 
 @pytest.mark.asyncio
-async def test_valid_registration_notifies_admin(client, factory):
+async def test_valid_registration_notifies_admin_and_user(client, factory):
     cl, bot = client
     async with factory() as session:
         user, _ = await crud.get_or_create_user(session, 70001, "alice")
@@ -49,11 +51,15 @@ async def test_valid_registration_notifies_admin(client, factory):
     )
 
     assert resp.status == 200
-    bot.send_message.assert_awaited_once()
-    chat_id, text = bot.send_message.call_args.args
-    assert chat_id == -1  # SUPPORT_CHAT_ID from conftest
-    assert "Алиса" in text
-    assert "tgads" in text
+    # Two messages: admin notice + user "store created"
+    assert bot.send_message.await_count == 2
+    admin_chat, admin_text = bot.send_message.call_args_list[0].args
+    assert admin_chat == -1  # SUPPORT_CHAT_ID from conftest
+    assert "Алиса" in admin_text
+    assert "tgads" in admin_text
+    user_chat, user_text = bot.send_message.call_args_list[1].args
+    assert user_chat == 70001
+    assert "Магазин создан" in user_text
 
 
 @pytest.mark.asyncio
@@ -90,7 +96,8 @@ async def test_duplicate_registration_does_not_renotify(client):
 
     assert r1.status == 200
     assert r2.status == 200
-    assert bot.send_message.await_count == 1
+    # First registration → admin + user (2 messages); duplicate → none
+    assert bot.send_message.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -120,5 +127,91 @@ async def test_unknown_utm_falls_back(client):
         json={"telegram_id": "70040", "first_name": "Дина"},
     )
     assert resp.status == 200
-    _, text = bot.send_message.call_args.args
+    # Admin notice is the first send_message call
+    _, text = bot.send_message.call_args_list[0].args
     assert "не указан" in text
+
+
+# ---------------------------------------------------------------------------
+# new-order endpoint
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_new_order_notifies_user(client, factory):
+    cl, bot = client
+    async with factory() as session:
+        await crud.get_or_create_user(session, 80001, "buyer")
+        await session.commit()
+
+    resp = await cl.post(
+        ORDER_ENDPOINT,
+        headers={"X-Bot-Secret": SECRET},
+        json={
+            "telegram_id": "80001",
+            "order_number": 42,
+            "customer_name": "Вася",
+            "phone": "+998901112233",
+            "amount": "100 000",
+        },
+    )
+
+    assert resp.status == 200
+    bot.send_message.assert_awaited_once()
+    chat_id, text = bot.send_message.call_args.args
+    assert chat_id == 80001
+    assert "42" in text
+    assert "Вася" in text
+
+
+@pytest.mark.asyncio
+async def test_new_order_bad_secret_returns_401(client):
+    cl, bot = client
+    resp = await cl.post(
+        ORDER_ENDPOINT, headers={"X-Bot-Secret": "wrong"}, json={"telegram_id": "80002"}
+    )
+    assert resp.status == 401
+    bot.send_message.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_new_order_missing_telegram_id_returns_400(client):
+    cl, bot = client
+    resp = await cl.post(
+        ORDER_ENDPOINT, headers={"X-Bot-Secret": SECRET}, json={"order_number": 1}
+    )
+    assert resp.status == 400
+    bot.send_message.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# low-products (re-engagement) endpoint
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_low_products_notifies_user(client, factory):
+    cl, bot = client
+    async with factory() as session:
+        await crud.get_or_create_user(session, 80010, "merchant")
+        await session.commit()
+
+    resp = await cl.post(
+        LOW_ENDPOINT,
+        headers={"X-Bot-Secret": SECRET},
+        json={"telegram_id": "80010", "product_count": 2},
+    )
+
+    assert resp.status == 200
+    bot.send_message.assert_awaited_once()
+    chat_id, text = bot.send_message.call_args.args
+    assert chat_id == 80010
+    assert "2" in text
+
+
+@pytest.mark.asyncio
+async def test_low_products_bad_secret_returns_401(client):
+    cl, bot = client
+    resp = await cl.post(
+        LOW_ENDPOINT, headers={"X-Bot-Secret": "wrong"}, json={"telegram_id": "80011"}
+    )
+    assert resp.status == 401
+    bot.send_message.assert_not_called()

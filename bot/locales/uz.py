@@ -81,4 +81,29 @@ texts: dict[str, str] = {
     "operator_relay_prefix": "👤 Operator: ",
     "user_relay_prefix": "👤 @{username}: ",
     "operator_no_active_chat": "Foydalanuvchi bilan faol chat yo'q.",
+    # admin notification — new platform registration
+    "admin_new_registration": (
+        "🎉 Platformada yangi ro'yxatdan o'tish!\n\n"
+        "Ism: {name}\n"
+        "Manba: {utm}\n"
+        "Vaqt: {time}"
+    ),
+    "admin_utm_unknown": "ko'rsatilmagan",
+    # lifecycle notifications to the user (§6.5)
+    "notify_store_created": (
+        "🎉 Do'kon yaratildi! Endi tovar qo'shish qoldi. "
+        "Kabinetni oching va birinchi tovarlarni yuklang — bir necha daqiqa."
+    ),
+    "btn_open_cabinet": "🏪 Kabinetni ochish",
+    "notify_new_order": (
+        "🛒 Yangi buyurtma №{order_number}! "
+        "Xaridor: {customer_name}, {phone}. Summa: {amount}. "
+        "Tasdiqlash uchun oching."
+    ),
+    "btn_open_order": "📦 Buyurtmani ochish",
+    "notify_low_products": (
+        "Do'koningizda {product_count} ta tovar bor. Ko'proq qo'shing — "
+        "xaridorlarga tanlash osonroq bo'ladi. Yordam kerak bo'lsa — operatorga yozing."
+    ),
+    "btn_add_products": "➕ Tovar qo'shish",
 }

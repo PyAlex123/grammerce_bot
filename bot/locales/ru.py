@@ -89,4 +89,21 @@ texts: dict[str, str] = {
         "Время: {time}"
     ),
     "admin_utm_unknown": "не указан",
+    # lifecycle notifications to the user (§6.5)
+    "notify_store_created": (
+        "🎉 Магазин создан! Осталось добавить товары. "
+        "Откройте кабинет и загрузите первые позиции — это пара минут."
+    ),
+    "btn_open_cabinet": "🏪 Открыть кабинет",
+    "notify_new_order": (
+        "🛒 Новый заказ №{order_number}! "
+        "Покупатель: {customer_name}, {phone}. Сумма: {amount}. "
+        "Откройте, чтобы подтвердить."
+    ),
+    "btn_open_order": "📦 Открыть заказ",
+    "notify_low_products": (
+        "В вашем магазине {product_count} товара. Добавьте больше — "
+        "покупателям будет проще выбрать. Нужна помощь — напишите оператору."
+    ),
+    "btn_add_products": "➕ Добавить товары",
 }
