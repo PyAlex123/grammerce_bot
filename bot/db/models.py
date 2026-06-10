@@ -1,6 +1,16 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, JSON, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from bot.db.engine import Base
@@ -20,9 +30,18 @@ class BotUser(Base):
     last_active_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     registered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # Activation funnel state (fed by the platform via /api/bot/funnel-state).
+    # store_created_at == registered_at (reused, not duplicated).
+    product_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    first_product_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    training_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    plan_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     demo_views: Mapped[list["BotDemoView"]] = relationship(back_populates="user")
     tickets: Mapped[list["BotSupportTicket"]] = relationship(back_populates="user")
     events: Mapped[list["BotEvent"]] = relationship(back_populates="user")
+    push_sends: Mapped[list["BotPushSend"]] = relationship(back_populates="user")
 
 
 class BotDemoView(Base):
@@ -60,3 +79,21 @@ class BotEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["BotUser"] = relationship(back_populates="events")
+
+
+class BotPushSend(Base):
+    """One row per activation-push delivery. Makes the scheduler idempotent and
+    enforces the "max 2 sends per step" rule (unique on user+step+send_no)."""
+
+    __tablename__ = "bot_push_sends"
+    __table_args__ = (
+        UniqueConstraint("bot_user_id", "step", "send_no", name="uq_push_send"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bot_user_id: Mapped[int] = mapped_column(ForeignKey("bot_users.id"), nullable=False)
+    step: Mapped[int] = mapped_column(Integer, nullable=False)
+    send_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["BotUser"] = relationship(back_populates="push_sends")

@@ -1,5 +1,7 @@
-import pytest
+from datetime import datetime
 from unittest.mock import AsyncMock
+
+import pytest
 
 from aiohttp.test_utils import TestClient, TestServer
 from sqlalchemy import select as sa_select
@@ -16,6 +18,7 @@ SECRET = "test-secret"
 ENDPOINT = "/api/bot/user-registered"
 ORDER_ENDPOINT = "/api/bot/new-order"
 LOW_ENDPOINT = "/api/bot/low-products"
+FUNNEL_ENDPOINT = "/api/bot/funnel-state"
 
 
 @pytest.fixture
@@ -215,3 +218,75 @@ async def test_low_products_bad_secret_returns_401(client):
     )
     assert resp.status == 401
     bot.send_message.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# funnel-state endpoint
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_funnel_state_upserts_fields(client, factory):
+    cl, _ = client
+    resp = await cl.post(
+        FUNNEL_ENDPOINT,
+        headers={"X-Bot-Secret": SECRET},
+        json={
+            "telegram_id": "90001",
+            "product_count": 5,
+            "training_completed": True,
+            "trial_ends_at": "2026-06-20T00:00:00Z",
+            "plan_paid": False,
+            "store_created_at": "2026-06-01T10:00:00Z",
+        },
+    )
+
+    assert resp.status == 200
+    async with factory() as session:
+        user = await crud.get_user_by_telegram_id(session, 90001)
+    assert user.product_count == 5
+    assert user.training_completed is True
+    assert user.plan_paid is False
+    assert user.trial_ends_at == datetime(2026, 6, 20, 0, 0, 0)
+    assert user.registered_at == datetime(2026, 6, 1, 10, 0, 0)
+    # product_count 0 -> >0 transition stamps first_product_at
+    assert user.first_product_at is not None
+
+
+@pytest.mark.asyncio
+async def test_funnel_state_partial_update_keeps_other_fields(client, factory):
+    cl, _ = client
+    async with factory() as session:
+        user, _ = await crud.get_or_create_user(session, 90002, "merchant")
+        await crud.update_funnel_state(session, user, product_count=3, plan_paid=False)
+        await session.commit()
+
+    # Only flip training_completed; product_count must survive.
+    resp = await cl.post(
+        FUNNEL_ENDPOINT,
+        headers={"X-Bot-Secret": SECRET},
+        json={"telegram_id": "90002", "training_completed": True},
+    )
+
+    assert resp.status == 200
+    async with factory() as session:
+        user = await crud.get_user_by_telegram_id(session, 90002)
+    assert user.product_count == 3
+    assert user.training_completed is True
+
+
+@pytest.mark.asyncio
+async def test_funnel_state_bad_secret_returns_401(client):
+    cl, bot = client
+    resp = await cl.post(
+        FUNNEL_ENDPOINT, headers={"X-Bot-Secret": "wrong"}, json={"telegram_id": "90003"}
+    )
+    assert resp.status == 401
+
+
+@pytest.mark.asyncio
+async def test_funnel_state_missing_telegram_id_returns_400(client):
+    cl, _ = client
+    resp = await cl.post(
+        FUNNEL_ENDPOINT, headers={"X-Bot-Secret": SECRET}, json={"product_count": 1}
+    )
+    assert resp.status == 400

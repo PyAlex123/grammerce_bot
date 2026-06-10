@@ -2,9 +2,16 @@ import logging
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.db.models import BotDemoView, BotEvent, BotSupportTicket, BotUser
+from bot.db.models import (
+    BotDemoView,
+    BotEvent,
+    BotPushSend,
+    BotSupportTicket,
+    BotUser,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +128,79 @@ async def log_event(
     session.add(event)
     await session.flush()
     return event
+
+
+# ---------------------------------------------------------------------------
+# Activation-funnel state + push bookkeeping
+# ---------------------------------------------------------------------------
+
+async def update_funnel_state(
+    session: AsyncSession,
+    user: BotUser,
+    *,
+    product_count: int | None = None,
+    training_completed: bool | None = None,
+    trial_ends_at: datetime | None = None,
+    plan_paid: bool | None = None,
+    store_created_at: datetime | None = None,
+) -> None:
+    """Upsert platform-fed funnel state onto the user.
+
+    Only fields explicitly provided (not None) are written, so partial updates
+    are safe. Records ``first_product_at`` the first time product_count goes
+    from 0 to >0. ``store_created_at`` backfills ``registered_at`` only when it
+    is still empty (never overwrites an existing registration time).
+    """
+    if product_count is not None:
+        if product_count > 0 and user.product_count == 0 and user.first_product_at is None:
+            user.first_product_at = datetime.utcnow()
+        user.product_count = product_count
+    if training_completed is not None:
+        user.training_completed = training_completed
+    if trial_ends_at is not None:
+        user.trial_ends_at = trial_ends_at
+    if plan_paid is not None:
+        user.plan_paid = plan_paid
+    if store_created_at is not None and user.registered_at is None:
+        user.registered_at = store_created_at
+    await session.flush()
+
+
+async def record_push_sent(
+    session: AsyncSession, user: BotUser, step: int, send_no: int
+) -> bool:
+    """Record that push (step, send_no) was sent to the user.
+
+    Returns True if a new row was written, False if it already existed
+    (idempotent — guards against double-sends on concurrent ticks).
+    """
+    send = BotPushSend(
+        bot_user_id=user.id, step=step, send_no=send_no, sent_at=datetime.utcnow()
+    )
+    session.add(send)
+    try:
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        return False
+    return True
+
+
+async def get_sent_steps(
+    session: AsyncSession, user: BotUser, step: int
+) -> set[int]:
+    """Return the set of send_no values already sent for the given step."""
+    result = await session.execute(
+        select(BotPushSend.send_no).where(
+            BotPushSend.bot_user_id == user.id, BotPushSend.step == step
+        )
+    )
+    return set(result.scalars().all())
+
+
+async def select_push_candidates(session: AsyncSession) -> list[BotUser]:
+    """Owners eligible for activation pushes (paid plan turns all pushes off)."""
+    result = await session.execute(
+        select(BotUser).where(BotUser.plan_paid.is_(False))
+    )
+    return list(result.scalars().all())

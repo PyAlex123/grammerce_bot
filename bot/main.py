@@ -10,6 +10,7 @@ from bot.config import settings
 from bot.db.engine import create_tables, get_session_factory, init_engine
 from bot.handlers import demo, operator, register, start, support
 from bot.middlewares.events import EventsMiddleware
+from bot.services.push_scheduler import scheduler_loop
 from bot.web import create_app
 
 logging.basicConfig(
@@ -62,10 +63,14 @@ async def main() -> None:
         settings.BOT_WEBHOOK_PORT,
     )
 
+    # Hourly activation-push scheduler (in-process).
+    scheduler_task = asyncio.create_task(scheduler_loop(bot, session_factory))
+
     logger.info("Starting Grammerce bot (long polling)...")
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
+        scheduler_task.cancel()
         await runner.cleanup()
 
 

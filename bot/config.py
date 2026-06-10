@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     BOT_WEBHOOK_HOST: str = "0.0.0.0"
     BOT_WEBHOOK_PORT: int = 8080
 
+    # Public channel link (https://t.me/...). When set, the 2nd activation-push
+    # send (pushes 1–3) shows a "Канал / Kanal" button. Empty → no channel button.
+    CHANNEL_URL: str = ""
+
     DEMO_BOT_COFFEE: str = "https://t.me/grammerce_coffee_bot"
     DEMO_BOT_CLOTHES: str = "https://t.me/grammerce_clothes_bot"
     DEMO_BOT_FLOWERS: str = "https://t.me/grammerce_flowers_bot"

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 from aiogram import Bot
 from aiohttp import web
@@ -10,6 +11,23 @@ from bot.keyboards.menu import cabinet_button
 from bot.locales import t
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_dt(value) -> datetime | None:
+    """Parse an ISO-8601 string into a naive UTC datetime, or None.
+
+    Accepts a trailing 'Z' and tz-aware offsets; the result is stored naive in
+    UTC to match the rest of the schema (datetime.utcnow()-based columns)."""
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        logger.warning("funnel-state: bad datetime %r", value)
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 def _format_name(data: dict, fallback: str) -> str:
@@ -152,8 +170,48 @@ def create_app(bot: Bot, session_factory: async_sessionmaker) -> web.Application
         await _send_to_user(telegram_id, text, cabinet_button(lang, "btn_add_products"))
         return web.json_response({"ok": True})
 
+    async def funnel_state(request: web.Request) -> web.Response:
+        """Platform → bot funnel-state upsert that drives activation pushes.
+
+        Body (all funnel fields optional, partial updates supported):
+          { "telegram_id": "123", "product_count": 3, "training_completed": true,
+            "trial_ends_at": "2026-06-15T00:00:00Z", "plan_paid": false,
+            "store_created_at": "2026-06-01T10:00:00Z" }
+        """
+        telegram_id, data = await _parse_user_event(request)
+        if telegram_id is None:
+            return data  # error response
+
+        async with session_factory() as session:
+            user, _ = await crud.get_or_create_user(
+                session, telegram_id=telegram_id, username=data.get("username")
+            )
+            await crud.update_funnel_state(
+                session,
+                user,
+                product_count=data.get("product_count"),
+                training_completed=data.get("training_completed"),
+                trial_ends_at=_parse_dt(data.get("trial_ends_at")),
+                plan_paid=data.get("plan_paid"),
+                store_created_at=_parse_dt(data.get("store_created_at")),
+            )
+            await crud.log_event(
+                session,
+                user,
+                "funnel_state_update",
+                {
+                    "product_count": data.get("product_count"),
+                    "training_completed": data.get("training_completed"),
+                    "plan_paid": data.get("plan_paid"),
+                },
+            )
+            await session.commit()
+
+        return web.json_response({"ok": True})
+
     app = web.Application()
     app.router.add_post("/api/bot/user-registered", user_registered)
     app.router.add_post("/api/bot/new-order", new_order)
     app.router.add_post("/api/bot/low-products", low_products)
+    app.router.add_post("/api/bot/funnel-state", funnel_state)
     return app

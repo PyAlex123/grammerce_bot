@@ -106,4 +106,61 @@ texts: dict[str, str] = {
         "xaridorlarga tanlash osonroq bo'ladi. Yordam kerak bo'lsa — operatorga yozing."
     ),
     "btn_add_products": "➕ Tovar qo'shish",
+    # activation pushes (funnel reminders) — see mdS/grammerce_push_notifications.md
+    # Push 1 — entered, no store
+    "push1_s1": (
+        "🛍 Telegram'dagi do'koningiz — bir necha bosishda\n\n"
+        "Siz kirdingiz, lekin hali do'kon yaratmadingiz. Vitrina, savat va "
+        "to'lovni biz yig'amiz — faqat boshlash kerak."
+    ),
+    "push1_s2": (
+        "💡 Qanday ishlashini tushunmadingizmi?\n\n"
+        "Do'kon yaratish — haqiqatan bir necha daqiqa, saytsiz va kodsiz. Avval "
+        "boshqalar Telegram'da qanday sotishini ko'rmoqchi bo'lsangiz — "
+        "kanalimizga kiring, u yerda tahlil va misollar bor."
+    ),
+    # Push 2 — store created, no product
+    "push2_s1": (
+        "📦 Do'kon tayyor, lekin javonlar bo'sh\n\n"
+        "Birinchi mahsulotni qo'shing — rasm, nomi, narxi. U paydo bo'lishi "
+        "bilan vitrinani mijozlarga ko'rsatish mumkin."
+    ),
+    "push2_s2": (
+        "🛒 Bitta mahsulot — va do'kon jonlanadi\n\n"
+        "Hammasini birato'la yuklash shart emas: bittadan boshlang, qolganini "
+        "keyin qo'shasiz. Rasm va tavsif bilan yordam kerakmi? Kanalda mahsulot "
+        "kartasini sotiladigan qilib bezash bo'yicha qisqa tahlil bor."
+    ),
+    # Push 3 — product uploaded, training not done
+    "push3_s1": (
+        "🎓 Bitta qadam qoldi\n\n"
+        "Mahsulotlar joyida — endi qisqa o'qish, va buyurtmalarni o'zingiz qabul "
+        "qilib yurita olasiz. Tez va aniq."
+    ),
+    "push3_s2": (
+        "✅ Bugun ishga tushing\n\n"
+        "Birinchi buyurtmalargacha — atigi bitta qisqa o'qish. Qotib qoldingizmi? "
+        "@PyAleX'ga yozing, bir necha daqiqada o'tishga yordam beramiz, yoki "
+        "kanalga kiring — u yerda hammasi qanday ishlashini ko'rsatamiz."
+    ),
+    # Push 4 — trial ending (service)
+    "push4_s1": (
+        "⏳ Bepul davrdan 2 kun qoldi\n\n"
+        "Do'koningiz allaqachon ishlayapti — to'xtab qolmasligi uchun tarif "
+        "tanlang. Start — 390 000 · Business — 650 000 · Premium — 910 000 "
+        "so'm/oy. Savdodan komissiya hamon 0%.\n\n"
+        "Savollar: @PyAleX"
+    ),
+    "push4_s2": (
+        "⚠️ Ertaga sinov davri tugaydi\n\n"
+        "Do'kon va mijozlar bazasi sizda uzilishsiz qolishi uchun — bugun "
+        "uzaytiring. Bu bir daqiqa oladi.\n\n"
+        "Savollar: @PyAleX"
+    ),
+    # push CTA buttons
+    "push_btn_create": "🏪 Do'kon yaratish",
+    "push_btn_add_product": "📦 Mahsulot qo'shish",
+    "push_btn_training": "🎓 O'qishni o'tish",
+    "push_btn_tariff": "💳 Tarif tanlash",
+    "push_btn_channel": "📣 Kanal",
 }
