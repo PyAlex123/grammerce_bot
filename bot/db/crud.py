@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -186,16 +186,29 @@ async def record_push_sent(
     return True
 
 
-async def get_sent_steps(
+async def get_step_sends(
     session: AsyncSession, user: BotUser, step: int
-) -> set[int]:
-    """Return the set of send_no values already sent for the given step."""
+) -> dict[int, datetime]:
+    """Return {send_no: sent_at} for pushes already sent for the given step."""
     result = await session.execute(
-        select(BotPushSend.send_no).where(
+        select(BotPushSend.send_no, BotPushSend.sent_at).where(
             BotPushSend.bot_user_id == user.id, BotPushSend.step == step
         )
     )
-    return set(result.scalars().all())
+    return {send_no: sent_at for send_no, sent_at in result.all()}
+
+
+async def last_push_sent_at(
+    session: AsyncSession, user: BotUser
+) -> datetime | None:
+    """Timestamp of the most recent push to the user across all steps (for the
+    per-user daily cap), or None if none sent yet."""
+    result = await session.execute(
+        select(func.max(BotPushSend.sent_at)).where(
+            BotPushSend.bot_user_id == user.id
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def select_push_candidates(session: AsyncSession) -> list[BotUser]:

@@ -31,7 +31,7 @@ async def send_create_shop_cta(
     """
     lang = user.language or "ru"
     try:
-        consume_url = await issue_auth_link(tg_user or message.from_user)
+        consume_url = await issue_auth_link(tg_user or message.from_user, lang=lang)
     except PlatformAuthError as exc:
         await crud.log_event(session, user, "register_error", {"reason": str(exc)})
         await message.answer(t(lang, "register_error"))

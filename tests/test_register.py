@@ -69,8 +69,8 @@ async def test_menu_create_callback_opens_webapp(make_callback, db_session, monk
     cb = make_callback(data="menu:create", user_id=30008)
     await handle_create_callback(cb, session=db_session)
 
-    # Uses the real Telegram user (not the bot) for the auth request
-    mock_issue.assert_awaited_once_with(cb.from_user)
+    # Uses the real Telegram user (not the bot) for the auth request, with lang
+    mock_issue.assert_awaited_once_with(cb.from_user, lang="ru")
     cb.answer.assert_called_once()
     keyboard = cb.message.answer.call_args.kwargs["reply_markup"]
     assert keyboard.inline_keyboard[0][0].web_app.url == CONSUME_URL

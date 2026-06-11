@@ -48,16 +48,17 @@ def cabinet_button(lang: str, label_key: str) -> InlineKeyboardMarkup | None:
 
 
 def push_keyboard(
-    lang: str, cta_label_key: str, with_channel: bool = False
+    lang: str, cta_label_key: str, with_channel: bool = False, url: str | None = None
 ) -> InlineKeyboardMarkup | None:
     """Keyboard for an activation push.
 
-    Row 1: the CTA — opens the platform inside Telegram (WebApp when
-    PLATFORM_WEBAPP_URL is set, else PLATFORM_URL). Row 2 (only when
-    `with_channel` and CHANNEL_URL is configured): a link to the channel.
-    Returns None if there is no platform URL to point the CTA at.
+    Row 1: the CTA WebApp button. When `url` is given (a one-shot auto-login
+    consume_url) the button opens it — logging the user straight into the
+    cabinet. Otherwise it falls back to PLATFORM_WEBAPP_URL/PLATFORM_URL (the
+    logged-out page). Row 2 (only when `with_channel` and CHANNEL_URL is set):
+    a link to the channel. Returns None if there is no URL to point the CTA at.
     """
-    url = settings.PLATFORM_WEBAPP_URL or settings.PLATFORM_URL
+    url = url or settings.PLATFORM_WEBAPP_URL or settings.PLATFORM_URL
     if not url:
         return None
     rows = [[InlineKeyboardButton(text=t(lang, cta_label_key), web_app=WebAppInfo(url=url))]]

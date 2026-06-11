@@ -15,19 +15,42 @@ class PlatformAuthError(Exception):
     """Raised when the platform fails to issue a Telegram auth link."""
 
 
-async def issue_auth_link(tg_user: User) -> str:
-    """Request a one-shot auth link from the platform for the given Telegram user.
+async def issue_auth_link(tg_user: User, lang: str | None = None) -> str:
+    """Request a one-shot auth link for a live aiogram Telegram user.
 
-    Returns the consume_url that the user must open in the browser.
-    Raises PlatformAuthError on any network / HTTP / timeout failure.
+    Thin wrapper around :func:`issue_auth_link_by` (kept for existing callers
+    that have a full ``aiogram.types.User``)."""
+    return await issue_auth_link_by(
+        tg_user.id,
+        first_name=tg_user.first_name,
+        last_name=tg_user.last_name,
+        username=tg_user.username,
+        lang=lang,
+    )
+
+
+async def issue_auth_link_by(
+    telegram_id: int,
+    *,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    username: str | None = None,
+    lang: str | None = None,
+) -> str:
+    """Request a one-shot auth link from the platform by raw fields.
+
+    Returns the consume_url to open inside Telegram (WebApp) — it logs the user
+    in by telegram_id. ``lang`` (ru/uz) is forwarded so the platform can open in
+    the language chosen in the bot. Raises PlatformAuthError on any failure.
     """
     url = f"{settings.PLATFORM_URL.rstrip('/')}{_ENDPOINT}"
     payload = {
-        "telegram_id": str(tg_user.id),
-        "first_name": tg_user.first_name,
-        "last_name": tg_user.last_name,
-        "username": tg_user.username,
+        "telegram_id": str(telegram_id),
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username,
         "photo_url": None,
+        "lang": lang,
     }
     headers = {
         "X-Bot-Secret": settings.PLATFORM_BOT_SHARED_SECRET,

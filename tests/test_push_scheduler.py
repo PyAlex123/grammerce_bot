@@ -10,6 +10,7 @@ from bot.db import models  # noqa: F401 — register models with Base
 from bot.db.engine import Base
 from bot.db.models import BotPushSend, BotUser
 from bot.services import push_scheduler as ps
+from bot.services.platform_auth import PlatformAuthError
 
 # A fixed "now" in the Tashkent daytime window: 10:00 UTC == 15:00 Tashkent.
 DAY = datetime(2026, 6, 10, 10, 0, 0)
@@ -32,6 +33,15 @@ def _user(**overrides) -> BotUser:
     )
     defaults.update(overrides)
     return BotUser(**defaults)
+
+
+@pytest.fixture(autouse=True)
+def _mock_auth_link(monkeypatch):
+    """Stub the platform auth-link call so run_once tests don't hit the network.
+    Returns a fake consume_url; individual tests can override to raise."""
+    monkeypatch.setattr(
+        ps, "issue_auth_link_by", AsyncMock(return_value="https://platform.test/consume/x")
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -91,33 +101,47 @@ def test_current_step_paid_is_none():
 
 def test_due_send1_not_yet():
     u = _user(first_seen_at=DAY - timedelta(hours=23))
-    assert ps.due_send(u, 1, set(), DAY) is None
+    assert ps.due_send(u, 1, {}, DAY) is None
 
 
 def test_due_send1_after_24h():
     u = _user(first_seen_at=DAY - timedelta(hours=25))
-    assert ps.due_send(u, 1, set(), DAY) == 1
+    assert ps.due_send(u, 1, {}, DAY) == 1
 
 
 def test_due_send2_requires_send1():
     u = _user(first_seen_at=DAY - timedelta(days=4))
     # send1 not recorded yet → still offer send1, not send2
-    assert ps.due_send(u, 1, set(), DAY) == 1
+    assert ps.due_send(u, 1, {}, DAY) == 1
 
 
 def test_due_send2_after_3d():
     u = _user(first_seen_at=DAY - timedelta(days=4))
-    assert ps.due_send(u, 1, {1}, DAY) == 2
+    # send1 delivered 3 days ago → past both since+3d and send1+2d
+    assert ps.due_send(u, 1, {1: DAY - timedelta(days=3)}, DAY) == 2
 
 
 def test_due_send2_not_yet():
     u = _user(first_seen_at=DAY - timedelta(days=2))
-    assert ps.due_send(u, 1, {1}, DAY) is None
+    assert ps.due_send(u, 1, {1: DAY - timedelta(days=1)}, DAY) is None
+
+
+def test_due_send2_blocked_by_min_gap():
+    # Long stuck (since+3d long passed), but send1 went out only 12h ago →
+    # the 2-day min gap holds send2 back. This is the deploy/backfill case.
+    u = _user(first_seen_at=DAY - timedelta(days=10))
+    assert ps.due_send(u, 1, {1: DAY - timedelta(hours=12)}, DAY) is None
+
+
+def test_due_send2_after_min_gap():
+    u = _user(first_seen_at=DAY - timedelta(days=10))
+    assert ps.due_send(u, 1, {1: DAY - timedelta(days=2, hours=1)}, DAY) == 2
 
 
 def test_due_send_capped_at_two():
     u = _user(first_seen_at=DAY - timedelta(days=10))
-    assert ps.due_send(u, 1, {1, 2}, DAY) is None
+    sent = {1: DAY - timedelta(days=5), 2: DAY - timedelta(days=3)}
+    assert ps.due_send(u, 1, sent, DAY) is None
 
 
 # ---------------------------------------------------------------------------
@@ -127,22 +151,22 @@ def test_due_send_capped_at_two():
 def test_trial_send1_window():
     # ~1.5 days left → inside the send-1 window [end-2d, end-1d).
     u = _user(trial_ends_at=DAY + timedelta(days=1, hours=12))
-    assert ps.due_send(u, 4, set(), DAY) == 1
+    assert ps.due_send(u, 4, {}, DAY) == 1
 
 
 def test_trial_send2_window():
     u = _user(trial_ends_at=DAY + timedelta(hours=23))  # <1 day left
-    assert ps.due_send(u, 4, set(), DAY) == 2
+    assert ps.due_send(u, 4, {}, DAY) == 2
 
 
 def test_trial_no_send_too_early():
     u = _user(trial_ends_at=DAY + timedelta(days=5))
-    assert ps.due_send(u, 4, set(), DAY) is None
+    assert ps.due_send(u, 4, {}, DAY) is None
 
 
 def test_trial_no_send_after_end():
     u = _user(trial_ends_at=DAY - timedelta(hours=1))
-    assert ps.due_send(u, 4, set(), DAY) is None
+    assert ps.due_send(u, 4, {}, DAY) is None
 
 
 # ---------------------------------------------------------------------------
@@ -198,13 +222,24 @@ async def test_run_once_dedups_same_tick(factory):
     assert await _count_sends(factory) == 1
 
 
+async def _insert_send(factory, user_id, step, send_no, sent_at):
+    """Insert a BotPushSend row with a controlled sent_at (for cadence tests)."""
+    async with factory() as session:
+        session.add(
+            BotPushSend(bot_user_id=user_id, step=step, send_no=send_no, sent_at=sent_at)
+        )
+        await session.commit()
+
+
 @pytest.mark.asyncio
 async def test_run_once_sends_send2_after_3_days(factory):
     async with factory() as session:
         user, _ = await crud.get_or_create_user(session, 1003, "stuck")
         user.first_seen_at = DAY - timedelta(days=4)
-        await crud.record_push_sent(session, user, step=1, send_no=1)
         await session.commit()
+        uid = user.id
+    # send1 delivered 3 days ago → past since+3d, send1+2d and the daily cap
+    await _insert_send(factory, uid, step=1, send_no=1, sent_at=DAY - timedelta(days=3))
 
     bot = AsyncMock()
     sent = await ps.run_once(bot, factory, now_utc=DAY)
@@ -220,15 +255,54 @@ async def test_run_once_silent_after_two_sends(factory):
     async with factory() as session:
         user, _ = await crud.get_or_create_user(session, 1004, "stuck")
         user.first_seen_at = DAY - timedelta(days=10)
-        await crud.record_push_sent(session, user, step=1, send_no=1)
-        await crud.record_push_sent(session, user, step=1, send_no=2)
         await session.commit()
+        uid = user.id
+    await _insert_send(factory, uid, step=1, send_no=1, sent_at=DAY - timedelta(days=5))
+    await _insert_send(factory, uid, step=1, send_no=2, sent_at=DAY - timedelta(days=3))
 
     bot = AsyncMock()
     sent = await ps.run_once(bot, factory, now_utc=DAY)
 
     assert sent == 0
     bot.send_message.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_run_once_daily_cap_skips(factory):
+    # Long-stuck user who already got a push 12h ago → daily cap holds the next
+    # one back (this is the deploy double-run / backfill bunching scenario).
+    async with factory() as session:
+        user, _ = await crud.get_or_create_user(session, 1007, "stuck")
+        user.first_seen_at = DAY - timedelta(days=10)
+        await session.commit()
+        uid = user.id
+    await _insert_send(factory, uid, step=1, send_no=1, sent_at=DAY - timedelta(hours=12))
+
+    bot = AsyncMock()
+    sent = await ps.run_once(bot, factory, now_utc=DAY)
+
+    assert sent == 0
+    bot.send_message.assert_not_called()
+    assert await _count_sends(factory) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_once_sends_even_if_auth_link_fails(factory, monkeypatch):
+    # Platform auth-link failure must not block the push — it falls back to the
+    # static CTA button and still sends.
+    monkeypatch.setattr(
+        ps, "issue_auth_link_by", AsyncMock(side_effect=PlatformAuthError("down"))
+    )
+    async with factory() as session:
+        user, _ = await crud.get_or_create_user(session, 1008, "stuck")
+        user.first_seen_at = DAY - timedelta(hours=25)
+        await session.commit()
+
+    bot = AsyncMock()
+    sent = await ps.run_once(bot, factory, now_utc=DAY)
+
+    assert sent == 1
+    bot.send_message.assert_awaited_once()
 
 
 @pytest.mark.asyncio

@@ -18,6 +18,7 @@ from bot.db import crud
 from bot.db.models import BotUser
 from bot.keyboards.menu import push_keyboard
 from bot.locales import t
+from bot.services.platform_auth import PlatformAuthError, issue_auth_link_by
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,12 @@ _QUIET_END_HOUR = 21
 # Activation pushes (steps 1–3): send 1 at +24h, send 2 at +3 days since stuck.
 _SEND1_AFTER = timedelta(hours=24)
 _SEND2_AFTER = timedelta(days=3)
+# Send 2 also never goes out sooner than this after send 1 was actually
+# delivered — prevents send 1 + send 2 collapsing into one day for owners who
+# have been stuck for a long time already (e.g. at backfill).
+_SEND2_MIN_GAP = timedelta(days=2)
+# Hard per-user cap: at most one push within this window, across all steps.
+_MIN_PUSH_INTERVAL = timedelta(days=1)
 # Trial push (step 4) is anchored on trial_ends_at: 2 days / 1 day before.
 _TRIAL_SEND1_BEFORE = timedelta(days=2)
 _TRIAL_SEND2_BEFORE = timedelta(days=1)
@@ -82,12 +89,14 @@ def stuck_since(user: BotUser, step: int) -> datetime | None:
 
 
 def due_send(
-    user: BotUser, step: int, sent: set[int], now_utc: datetime
+    user: BotUser, step: int, sent: dict[int, datetime], now_utc: datetime
 ) -> int | None:
     """Which send (1 or 2) is due now for ``step``, or None.
 
-    Caps at 2 sends per step. Steps 1–3 use relative offsets and require send 1
-    before send 2. Step 4 (trial) uses fixed windows before ``trial_ends_at``.
+    ``sent`` maps already-sent send_no → its sent_at. Caps at 2 sends per step.
+    Steps 1–3 use relative offsets, require send 1 before send 2, and keep send 2
+    at least ``_SEND2_MIN_GAP`` after send 1 was actually delivered. Step 4
+    (trial) uses fixed windows before ``trial_ends_at``.
     """
     if step == 4:
         end = user.trial_ends_at
@@ -104,7 +113,12 @@ def due_send(
         return None
     if 1 not in sent and now_utc >= since + _SEND1_AFTER:
         return 1
-    if 1 in sent and 2 not in sent and now_utc >= since + _SEND2_AFTER:
+    if (
+        1 in sent
+        and 2 not in sent
+        and now_utc >= since + _SEND2_AFTER
+        and now_utc >= sent[1] + _SEND2_MIN_GAP
+    ):
         return 2
     return None
 
@@ -115,7 +129,20 @@ async def _send_push(bot: Bot, user: BotUser, step: int, send_no: int) -> bool:
     lang = user.language or "ru"
     text = t(lang, f"push{step}_s{send_no}")
     with_channel = send_no == 2 and step in _CHANNEL_STEPS
-    markup = push_keyboard(lang, _STEP_CTA[step], with_channel=with_channel)
+    # Auto-login: same one-shot consume_url as the in-bot "Create shop" button,
+    # so the CTA opens the cabinet logged in (not the logged-out landing). On any
+    # platform failure, fall back to the static cabinet button — the push still
+    # goes out.
+    try:
+        consume_url = await issue_auth_link_by(
+            user.telegram_id, username=user.username, lang=lang
+        )
+    except PlatformAuthError:
+        logger.warning(
+            "push: auth link failed for tg_id=%s — sending static CTA", user.telegram_id
+        )
+        consume_url = None
+    markup = push_keyboard(lang, _STEP_CTA[step], with_channel=with_channel, url=consume_url)
     try:
         # Text-only for now. Image support (send_photo with the spec's briefs)
         # is a future, config-driven enhancement — it would slot in here.
@@ -153,7 +180,11 @@ async def run_once(
             step = current_step(user)
             if step is None:
                 continue
-            already = await crud.get_sent_steps(session, user, step)
+            # Per-user daily cap: at most one push within _MIN_PUSH_INTERVAL.
+            last = await crud.last_push_sent_at(session, user)
+            if last is not None and now_utc - last < _MIN_PUSH_INTERVAL:
+                continue
+            already = await crud.get_step_sends(session, user, step)
             send_no = due_send(user, step, already, now_utc)
             if send_no is None:
                 continue
