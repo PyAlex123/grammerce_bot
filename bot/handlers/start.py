@@ -22,8 +22,8 @@ def detect_language(language_code: str | None) -> str:
     return "ru"
 
 
-async def _get_cta_url(tg_user, lang: str) -> str | None:
-    """Generate a one-shot consume_url for the CTA button. Returns None on error."""
+async def _get_auth_url(tg_user, lang: str) -> str | None:
+    """Generate a one-shot consume_url. Returns None on error."""
     try:
         return await issue_auth_link(tg_user, lang=lang)
     except PlatformAuthError as exc:
@@ -34,12 +34,18 @@ async def _get_cta_url(tg_user, lang: str) -> str | None:
 async def _send_welcome(message: Message, bot: Bot, lang: str) -> None:
     assert message.from_user is not None
     name = (message.from_user.first_name or "").strip()
-    cta_url = await _get_cta_url(message.from_user, lang)
+
+    # Generate two separate one-shot URLs: one for the inline CTA button,
+    # one for the persistent menu button. They must be different tokens
+    # because each consume_url is single-use.
+    cta_url = await _get_auth_url(message.from_user, lang)
+    menu_url = await _get_auth_url(message.from_user, lang)
+
     await message.answer(
         t(lang, "start_welcome").format(name=name),
         reply_markup=welcome_keyboard(lang, cta_url),
     )
-    menu_btn = chat_menu_button(lang)
+    menu_btn = chat_menu_button(lang, menu_url)
     if menu_btn:
         await bot.set_chat_menu_button(
             chat_id=message.from_user.id,
@@ -104,6 +110,7 @@ async def cmd_start(
 
 @router.message(Command("chatid"))
 async def cmd_chatid(message: Message) -> None:
+    assert message.from_user is not None
     await message.answer(
         f"Chat ID: <code>{message.chat.id}</code>\n"
         f"User ID: <code>{message.from_user.id}</code>",
@@ -126,7 +133,7 @@ async def select_language(callback: CallbackQuery, session: AsyncSession) -> Non
     await crud.log_event(session, user, "language_select", {"language": lang})
 
     name = (callback.from_user.first_name or "").strip()
-    cta_url = await _get_cta_url(callback.from_user, lang)
+    cta_url = await _get_auth_url(callback.from_user, lang)
     await callback.message.edit_text(
         t(lang, "start_welcome").format(name=name),
         reply_markup=welcome_keyboard(lang, cta_url),
