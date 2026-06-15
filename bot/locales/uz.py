@@ -9,13 +9,13 @@ texts: dict[str, str] = {
     "menu": "Asosiy menyu 👇",
     # personalised first-screen greeting
     "start_welcome": (
-        "Salom, {name}! 👋\n"
+        "Salom, {name}! 👋\n\n"
         "Grammerce — 2 daqiqada Telegram'dagi do'koningiz. "
         "Saytsiz va dasturchisiz, savdodan 0% komissiya.\n\n"
         "✓ Tayyor vitrina va katalog\n"
         "✓ Click / Payme / Uzum to'lovi\n"
         "✓ Buyurtma va mijozlar bir joyda\n\n"
-        "Demo · Yordam · grammerce.io"
+        "🌐 grammerce.io"
     ),
     # main menu buttons
     "btn_create_shop": "🏪 Do'kon yaratish",
@@ -46,15 +46,21 @@ texts: dict[str, str] = {
     "faq_live_operator_btn": "👤 Jonli operator",
     # FAQ answers (Setup Fee narx javobiga kiritilgan; API faqat operator orqali)
     "faq_price": (
-        "Obuna oyiga 390 000 so'mdan: Start 390 000 · Business 650 000 · Premium 910 000. "
-        "Barcha tariflar — 7 kun bepul.\n"
-        "Alohida, bir martalik — ulanish: do'kon dizayni, tovarlarni yuklash, "
-        "to'lovni sozlash, o'qitish.\n"
-        "Savdodan komissiya — 0%. Batafsil: grammerce.io"
+        "💰 <b>Obuna tariflari</b>\n\n"
+        "• Start — 390 000 so'm/oy\n"
+        "• Business — 650 000 so'm/oy\n"
+        "• Premium — 910 000 so'm/oy\n\n"
+        "🎁 Barcha tariflar — <b>7 kun bepul</b>\n"
+        "🚫 Savdodan komissiya — <b>0%</b>\n\n"
+        "Ulanishda bir martalik: do'kon dizayni, tovarlarni yuklash, to'lovni sozlash, o'qitish.\n\n"
+        "🌐 grammerce.io"
     ),
     "faq_timeline": (
-        "Ishga tushirish 1–2 kunda: siz ariza qoldirasiz, biz do'konni yig'amiz va "
-        "xodimni o'qitamiz. Keyin u 24/7 ishlaydi."
+        "⏱ <b>Ishga tushirish muddati</b>\n\n"
+        "1️⃣ Siz ariza qoldirasiz\n"
+        "2️⃣ Biz do'konni yig'amiz va xodimni o'qitamiz\n"
+        "3️⃣ Do'kon <b>1–2 kunda</b> ishga tushadi\n\n"
+        "Ishga tushgach 24/7 sizning ishtirokingizisiz ishlaydi."
     ),
     "ask_question": (
         "✍️ Savolingizni yozing — operator tez orada javob beradi.\n\n"

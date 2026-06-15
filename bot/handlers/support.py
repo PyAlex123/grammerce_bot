@@ -72,7 +72,7 @@ async def handle_faq(
     answer_key = _FAQ_ANSWERS.get(topic)
     if answer_key:
         await crud.log_event(session, user, "support_faq", {"topic": topic})
-        await callback.message.answer(t(lang, answer_key))
+        await callback.message.answer(t(lang, answer_key), parse_mode="HTML")
     await callback.answer()
 
 
