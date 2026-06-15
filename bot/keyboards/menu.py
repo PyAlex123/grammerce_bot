@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, WebAppInfo
 
 from bot.config import settings
 from bot.locales import t
@@ -8,11 +8,29 @@ _OTHER_LANG = {"ru": "uz", "uz": "ru"}
 
 
 def _create_shop_button(lang: str) -> InlineKeyboardButton:
-    """Primary CTA. Tapping it issues a one-shot login link and opens it inside
-    Telegram (WebApp / Mini App) — handled by handlers/register (menu:create)."""
+    """Primary CTA.
+    When PLATFORM_WEBAPP_URL is set — opens the platform directly as a Mini App
+    (no extra step, auth via Telegram initData). Otherwise falls back to the
+    one-shot consume_url flow via menu:create callback.
+    """
+    if settings.PLATFORM_WEBAPP_URL:
+        return InlineKeyboardButton(
+            text=t(lang, "btn_create_shop"),
+            web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
+        )
     return InlineKeyboardButton(
         text=t(lang, "btn_create_shop"), callback_data="menu:create"
     )
+
+
+def chat_menu_button(lang: str) -> MenuButtonWebApp | None:
+    """Persistent Menu Button shown next to the message input field.
+    Returns None when no platform URL is configured.
+    """
+    url = settings.PLATFORM_WEBAPP_URL or settings.PLATFORM_URL
+    if not url:
+        return None
+    return MenuButtonWebApp(text=t(lang, "btn_menu_button"), web_app=WebAppInfo(url=url))
 
 
 def welcome_keyboard(lang: str) -> InlineKeyboardMarkup:

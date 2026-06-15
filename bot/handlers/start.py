@@ -1,13 +1,13 @@
 import logging
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.filters.command import CommandObject
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db import crud
-from bot.keyboards.menu import welcome_keyboard
+from bot.keyboards.menu import chat_menu_button, welcome_keyboard
 from bot.locales import t
 
 logger = logging.getLogger(__name__)
@@ -21,12 +21,18 @@ def detect_language(language_code: str | None) -> str:
     return "ru"
 
 
-async def _send_welcome(message: Message, lang: str) -> None:
+async def _send_welcome(message: Message, bot: Bot, lang: str) -> None:
     name = (message.from_user.first_name or "").strip()
     await message.answer(
         t(lang, "start_welcome").format(name=name),
         reply_markup=welcome_keyboard(lang),
     )
+    menu_btn = chat_menu_button(lang)
+    if menu_btn:
+        await bot.set_chat_menu_button(
+            chat_id=message.from_user.id,
+            menu_button=menu_btn,
+        )
 
 
 def parse_utm(payload: str | None) -> dict[str, str | None]:
@@ -47,7 +53,7 @@ def parse_utm(payload: str | None) -> dict[str, str | None]:
 
 @router.message(CommandStart())
 async def cmd_start(
-    message: Message, command: CommandObject, session: AsyncSession
+    message: Message, command: CommandObject, session: AsyncSession, bot: Bot
 ) -> None:
     user, _ = await crud.get_or_create_user(
         session,
@@ -79,7 +85,7 @@ async def cmd_start(
     else:
         lang = user.language
 
-    await _send_welcome(message, lang)
+    await _send_welcome(message, bot, lang)
     await crud.log_event(session, user, "menu_view", {"source": "start"})
 
 
@@ -93,7 +99,7 @@ async def cmd_chatid(message: Message) -> None:
 
 
 @router.callback_query(F.data.startswith("lang:"))
-async def select_language(callback: CallbackQuery, session: AsyncSession) -> None:
+async def select_language(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
     """Language toggle on the welcome screen — re-render the greeting in place."""
     lang = callback.data.split(":")[1]
     user, _ = await crud.get_or_create_user(
@@ -109,4 +115,10 @@ async def select_language(callback: CallbackQuery, session: AsyncSession) -> Non
         t(lang, "start_welcome").format(name=name),
         reply_markup=welcome_keyboard(lang),
     )
+    menu_btn = chat_menu_button(lang)
+    if menu_btn:
+        await bot.set_chat_menu_button(
+            chat_id=callback.from_user.id,
+            menu_button=menu_btn,
+        )
     await callback.answer()

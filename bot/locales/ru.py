@@ -95,6 +95,7 @@ texts: dict[str, str] = {
         "Откройте кабинет и загрузите первые позиции — это пара минут."
     ),
     "btn_open_cabinet": "🏪 Открыть кабинет",
+    "btn_menu_button": "Grammerce",
     "notify_new_order": (
         "🛒 Новый заказ №{order_number}! "
         "Покупатель: {customer_name}, {phone}. Сумма: {amount}. "
