@@ -25,12 +25,15 @@ def _create_shop_button(lang: str) -> InlineKeyboardButton:
 
 def chat_menu_button(lang: str) -> MenuButtonWebApp | None:
     """Persistent Menu Button shown next to the message input field.
-    Returns None when no platform URL is configured.
+    Only set when PLATFORM_WEBAPP_URL is configured — opening the plain
+    PLATFORM_URL here would show the site without auth, which is confusing.
     """
-    url = settings.PLATFORM_WEBAPP_URL or settings.PLATFORM_URL
-    if not url:
+    if not settings.PLATFORM_WEBAPP_URL:
         return None
-    return MenuButtonWebApp(text=t(lang, "btn_menu_button"), web_app=WebAppInfo(url=url))
+    return MenuButtonWebApp(
+        text=t(lang, "btn_menu_button"),
+        web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
+    )
 
 
 def welcome_keyboard(lang: str) -> InlineKeyboardMarkup:

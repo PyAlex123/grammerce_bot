@@ -19,33 +19,37 @@ _BTN_CREATE = {RU["btn_create_shop"], UZ["btn_create_shop"]}
 
 
 async def send_create_shop_cta(
-    message: Message, session: AsyncSession, user: BotUser, tg_user=None
+    message: Message, session: AsyncSession, user: BotUser, tg_user=None, *, edit: bool = False
 ) -> None:
     """Issue a one-shot login link and present it as a WebApp button.
 
-    The platform's consume_url opens inside Telegram (Mini App webview): it
-    validates the token, logs the user in by telegram_id and redirects to the
-    cabinet — no external browser, no separate Mini App page needed. `tg_user`
-    overrides the Telegram user used for the request (for callback queries,
-    where message.from_user is the bot).
+    When `edit=True` the existing message is edited in-place (no extra
+    message appears in the chat). Use this from callback handlers so the
+    welcome message transforms directly into the open-platform button.
+    `tg_user` overrides the Telegram user for the auth request (callbacks
+    carry the bot user in message.from_user, not the real user).
     """
     lang = user.language or "ru"
+    tg = tg_user or message.from_user
+    assert tg is not None
     try:
-        consume_url = await issue_auth_link(tg_user or message.from_user, lang=lang)
+        consume_url = await issue_auth_link(tg, lang=lang)
     except PlatformAuthError as exc:
         await crud.log_event(session, user, "register_error", {"reason": str(exc)})
         await message.answer(t(lang, "register_error"))
         return
 
     await crud.log_event(session, user, "register_click", {"consume_url": consume_url})
-    await message.answer(
-        t(lang, "cta_create_shop_prompt"),
-        reply_markup=webapp_button(lang, "cta_open_platform_btn", consume_url),
-    )
+    kb = webapp_button(lang, "cta_open_platform_btn", consume_url)
+    if edit:
+        await message.edit_text(t(lang, "cta_create_shop_prompt"), reply_markup=kb)
+    else:
+        await message.answer(t(lang, "cta_create_shop_prompt"), reply_markup=kb)
 
 
 @router.message(F.text.in_(_BTN_CREATE))
 async def handle_create_shop(message: Message, session: AsyncSession) -> None:
+    assert message.from_user is not None
     user, _ = await crud.get_or_create_user(
         session,
         telegram_id=message.from_user.id,
@@ -56,11 +60,14 @@ async def handle_create_shop(message: Message, session: AsyncSession) -> None:
 
 @router.callback_query(F.data == "menu:create")
 async def handle_create_callback(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Welcome-screen 'Создать магазин' button → issue link and open in Telegram."""
+    """Welcome-screen 'Создать магазин' button → edits the message in-place, no new message."""
     user, _ = await crud.get_or_create_user(
         session,
         telegram_id=callback.from_user.id,
         username=callback.from_user.username,
     )
-    await send_create_shop_cta(callback.message, session, user, tg_user=callback.from_user)
+    assert isinstance(callback.message, Message)
+    await send_create_shop_cta(
+        callback.message, session, user, tg_user=callback.from_user, edit=True
+    )
     await callback.answer()
