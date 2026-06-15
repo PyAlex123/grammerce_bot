@@ -3,11 +3,11 @@ import logging
 from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.filters.command import CommandObject
-from aiogram.types import CallbackQuery, Message, MenuButtonDefault
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db import crud
-from bot.keyboards.menu import welcome_keyboard
+from bot.keyboards.menu import chat_menu_button, welcome_keyboard
 from bot.locales import t
 from bot.services.platform_auth import PlatformAuthError, issue_auth_link
 
@@ -39,12 +39,12 @@ async def _send_welcome(message: Message, bot: Bot, lang: str) -> None:
         t(lang, "start_welcome").format(name=name),
         reply_markup=welcome_keyboard(lang, cta_url),
     )
-    # Reset any previously-set menu button so users don't see a stale
-    # "Grammerce" button that opened the plain site without auth.
-    await bot.set_chat_menu_button(
-        chat_id=message.from_user.id,
-        menu_button=MenuButtonDefault(),
-    )
+    menu_btn = chat_menu_button(lang)
+    if menu_btn:
+        await bot.set_chat_menu_button(
+            chat_id=message.from_user.id,
+            menu_button=menu_btn,
+        )
 
 
 def parse_utm(payload: str | None) -> dict[str, str | None]:
