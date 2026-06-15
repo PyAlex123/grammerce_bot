@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.db import crud
 from bot.keyboards.menu import chat_menu_button, welcome_keyboard
 from bot.locales import t
+from bot.services.platform_auth import PlatformAuthError, issue_auth_link
 
 logger = logging.getLogger(__name__)
 router = Router(name="start")
@@ -21,11 +22,22 @@ def detect_language(language_code: str | None) -> str:
     return "ru"
 
 
+async def _get_cta_url(tg_user, lang: str) -> str | None:
+    """Generate a one-shot consume_url for the CTA button. Returns None on error."""
+    try:
+        return await issue_auth_link(tg_user, lang=lang)
+    except PlatformAuthError as exc:
+        logger.warning("Failed to pre-generate auth link: %s", exc)
+        return None
+
+
 async def _send_welcome(message: Message, bot: Bot, lang: str) -> None:
+    assert message.from_user is not None
     name = (message.from_user.first_name or "").strip()
+    cta_url = await _get_cta_url(message.from_user, lang)
     await message.answer(
         t(lang, "start_welcome").format(name=name),
-        reply_markup=welcome_keyboard(lang),
+        reply_markup=welcome_keyboard(lang, cta_url),
     )
     menu_btn = chat_menu_button(lang)
     if menu_btn:
@@ -55,6 +67,7 @@ def parse_utm(payload: str | None) -> dict[str, str | None]:
 async def cmd_start(
     message: Message, command: CommandObject, session: AsyncSession, bot: Bot
 ) -> None:
+    assert message.from_user is not None
     user, _ = await crud.get_or_create_user(
         session,
         telegram_id=message.from_user.id,
@@ -101,6 +114,8 @@ async def cmd_chatid(message: Message) -> None:
 @router.callback_query(F.data.startswith("lang:"))
 async def select_language(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
     """Language toggle on the welcome screen — re-render the greeting in place."""
+    assert callback.data is not None
+    assert isinstance(callback.message, Message)
     lang = callback.data.split(":")[1]
     user, _ = await crud.get_or_create_user(
         session,
@@ -111,9 +126,10 @@ async def select_language(callback: CallbackQuery, session: AsyncSession, bot: B
     await crud.log_event(session, user, "language_select", {"language": lang})
 
     name = (callback.from_user.first_name or "").strip()
+    cta_url = await _get_cta_url(callback.from_user, lang)
     await callback.message.edit_text(
         t(lang, "start_welcome").format(name=name),
-        reply_markup=welcome_keyboard(lang),
+        reply_markup=welcome_keyboard(lang, cta_url),
     )
     menu_btn = chat_menu_button(lang)
     if menu_btn:

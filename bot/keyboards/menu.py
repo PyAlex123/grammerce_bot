@@ -7,16 +7,18 @@ from bot.locales import t
 _OTHER_LANG = {"ru": "uz", "uz": "ru"}
 
 
-def _create_shop_button(lang: str) -> InlineKeyboardButton:
+def _create_shop_button(lang: str, cta_url: str | None = None) -> InlineKeyboardButton:
     """Primary CTA.
-    When PLATFORM_WEBAPP_URL is set — opens the platform directly as a Mini App
-    (no extra step, auth via Telegram initData). Otherwise falls back to the
-    one-shot consume_url flow via menu:create callback.
+    When `cta_url` is provided (one-shot consume_url pre-generated on /start),
+    or PLATFORM_WEBAPP_URL is configured, the button is a WebApp button — user
+    taps once and lands in the cabinet with no intermediate step.
+    Falls back to the menu:create callback only when no URL is available.
     """
-    if settings.PLATFORM_WEBAPP_URL:
+    url = cta_url or settings.PLATFORM_WEBAPP_URL
+    if url:
         return InlineKeyboardButton(
             text=t(lang, "btn_create_shop"),
-            web_app=WebAppInfo(url=settings.PLATFORM_WEBAPP_URL),
+            web_app=WebAppInfo(url=url),
         )
     return InlineKeyboardButton(
         text=t(lang, "btn_create_shop"), callback_data="menu:create"
@@ -36,12 +38,13 @@ def chat_menu_button(lang: str) -> MenuButtonWebApp | None:
     )
 
 
-def welcome_keyboard(lang: str) -> InlineKeyboardMarkup:
-    """First-screen keyboard: one primary CTA, two secondary actions, language toggle."""
+def welcome_keyboard(lang: str, cta_url: str | None = None) -> InlineKeyboardMarkup:
+    """First-screen keyboard. Pass `cta_url` to embed a one-shot auth link
+    directly in the CTA button — user taps once and lands in the cabinet."""
     other = _OTHER_LANG.get(lang, "uz")
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [_create_shop_button(lang)],
+            [_create_shop_button(lang, cta_url)],
             [
                 InlineKeyboardButton(text=t(lang, "btn_demo"), callback_data="menu:demo"),
                 InlineKeyboardButton(text=t(lang, "btn_support"), callback_data="menu:support"),
