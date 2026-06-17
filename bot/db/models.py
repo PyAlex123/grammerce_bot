@@ -1,10 +1,12 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    ARRAY,
     BigInteger,
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     String,
@@ -97,3 +99,57 @@ class BotPushSend(Base):
     sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["BotUser"] = relationship(back_populates="push_sends")
+
+
+class SurveySource(Base):
+    """One row per (user, source) — tracks deep-link clicks for funnel analytics."""
+
+    __tablename__ = "survey_sources"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source", name="uq_survey_source_user_source"),
+        Index("idx_survey_sources_source", "source"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    entered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SurveyResponse(Base):
+    """Completed survey submission received via web_app_data."""
+
+    __tablename__ = "survey_responses"
+    __table_args__ = (
+        Index("idx_responses_source", "source"),
+        Index("idx_responses_consent", "consent"),
+        Index("idx_responses_created", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # 8 survey answer fields
+    category: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    platforms: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    commission: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    contacts: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lost_case: Mapped[str | None] = mapped_column(Text, nullable=True)
+    own_channel: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    budget: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    pain: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Contact block
+    contact_tg: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_store: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    consent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Meta
+    lang: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    platform: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    raw_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

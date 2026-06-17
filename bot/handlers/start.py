@@ -86,6 +86,19 @@ async def cmd_start(
         await send_create_shop_cta(message, session, user)
         return
 
+    if command.args and command.args.startswith("research_"):
+        lang = user.language or detect_language(message.from_user.language_code)
+        await crud.save_survey_source(
+            session,
+            telegram_id=message.from_user.id,
+            username=message.from_user.username,
+            source=command.args,
+        )
+        await crud.log_event(session, user, "research_enter", {"source": command.args})
+        from bot.handlers.research import send_research_welcome
+        await send_research_welcome(message, lang)
+        return  # do NOT show main menu
+
     utm = parse_utm(command.args)
     if utm:
         await crud.save_utm(

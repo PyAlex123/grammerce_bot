@@ -8,7 +8,7 @@ from aiohttp import web
 
 from bot.config import settings
 from bot.db.engine import create_tables, get_session_factory, init_engine
-from bot.handlers import demo, operator, register, start, support
+from bot.handlers import demo, operator, register, research, start, support
 from bot.middlewares.events import EventsMiddleware
 from bot.services.push_scheduler import scheduler_loop
 from bot.web import create_app
@@ -46,7 +46,8 @@ async def main() -> None:
 
     dp.update.middleware(EventsMiddleware(session_factory))
 
-    dp.include_router(operator.router)  # must be first — intercepts admin chat
+    dp.include_router(operator.router)   # must be first — intercepts admin chat
+    dp.include_router(research.router)   # before start — handles web_app_data early
     dp.include_router(start.router)
     dp.include_router(demo.router)
     dp.include_router(register.router)

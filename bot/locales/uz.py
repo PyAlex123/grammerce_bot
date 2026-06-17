@@ -95,6 +95,24 @@ texts: dict[str, str] = {
         "Vaqt: {time}"
     ),
     "admin_utm_unknown": "ko'rsatilmagan",
+    # research survey flow (deep-link only, not shown in main menu)
+    "research_welcome": (
+        "Salom.\n\n"
+        "Bu O'zbekiston marketplace sellerlari bozorini o'rganish uchun qisqa so'rovnoma.\n\n"
+        "8 ta savol · ~2 daqiqa · maxfiy\n\n"
+        "So'rovnoma Uz Seller Club bilan birgalikda o'tkazilmoqda. Natijalar klub kanalida "
+        "anonim holda e'lon qilinadi. Kontaktlar faqat siz oxirida ko'rsatgan bo'lsangiz to'planadi.\n\n"
+        "Boshlash uchun quyidagi tugmani bosing."
+    ),
+    "research_btn_start": "🔍 So'rovnomani boshlash",
+    "research_confirmation": (
+        "Ishtirok etganingiz uchun rahmat.\n\n"
+        "So'rovnoma maxfiy — tahlil uchun jamlangan statistika ishlatiladi.\n\n"
+        "Agar kontakt qoldirgan va bog'lanishga rozi bo'lsangiz — pilot loyihalar "
+        "tanlovi yakunlari bo'yicha 2 hafta ichida yozamiz.\n\n"
+        "«O'zbekiston selleri profili 2026» hisoboti @uzsellerclub kanalida e'lon qilinadi."
+    ),
+    "research_error": "Javoblarni qayta ishlashning iloji bo'lmadi. Qayta urinib ko'ring.",
     # lifecycle notifications to the user (§6.5)
     "notify_store_created": (
         "🎉 Do'kon yaratildi! Endi tovar qo'shish qoldi. "

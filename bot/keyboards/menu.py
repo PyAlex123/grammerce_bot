@@ -56,6 +56,17 @@ def welcome_keyboard(lang: str, cta_url: str | None = None) -> InlineKeyboardMar
     )
 
 
+def research_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Single-button keyboard for the research welcome screen.
+    Opens the survey WebApp directly; no main-menu buttons."""
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text=t(lang, "research_btn_start"),
+            web_app=WebAppInfo(url=settings.SURVEY_WEBAPP_URL),
+        )
+    ]])
+
+
 def webapp_button(lang: str, label_key: str, url: str) -> InlineKeyboardMarkup:
     """Single-button keyboard that opens `url` inside Telegram (WebApp), not the browser."""
     return InlineKeyboardMarkup(

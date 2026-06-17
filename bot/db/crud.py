@@ -11,6 +11,8 @@ from bot.db.models import (
     BotPushSend,
     BotSupportTicket,
     BotUser,
+    SurveyResponse,
+    SurveySource,
 )
 
 logger = logging.getLogger(__name__)
@@ -217,3 +219,67 @@ async def select_push_candidates(session: AsyncSession) -> list[BotUser]:
         select(BotUser).where(BotUser.plan_paid.is_(False))
     )
     return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# Research survey
+# ---------------------------------------------------------------------------
+
+async def save_survey_source(
+    session: AsyncSession,
+    telegram_id: int,
+    username: str | None,
+    source: str,
+) -> SurveySource:
+    """Record a research deep-link click. Idempotent: duplicate (user, source)
+    pairs are silently ignored via the unique constraint."""
+    row = SurveySource(user_id=telegram_id, username=username, source=source)
+    session.add(row)
+    try:
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        result = await session.execute(
+            select(SurveySource).where(
+                SurveySource.user_id == telegram_id,
+                SurveySource.source == source,
+            )
+        )
+        row = result.scalar_one()
+    return row
+
+
+async def save_survey_response(
+    session: AsyncSession,
+    telegram_id: int,
+    username: str | None,
+    payload: dict,
+) -> SurveyResponse:
+    """Persist a completed survey submission from web_app_data.
+    Multiple submissions from the same user are allowed (analytics takes latest)."""
+    answers = payload.get("answers", {})
+    contact = payload.get("contact", {})
+    meta = payload.get("meta", {})
+
+    row = SurveyResponse(
+        user_id=telegram_id,
+        username=username,
+        source=meta.get("start_param"),
+        category=answers.get("category"),
+        platforms=answers.get("platforms") or None,
+        commission=answers.get("commission"),
+        contacts=answers.get("contacts"),
+        lost_case=answers.get("lost_case"),
+        own_channel=answers.get("own_channel"),
+        budget=answers.get("budget"),
+        pain=answers.get("pain"),
+        contact_tg=contact.get("tg"),
+        contact_store=contact.get("store"),
+        consent=bool(contact.get("consent", False)),
+        lang=meta.get("lang"),
+        platform=meta.get("platform"),
+        raw_payload=payload,
+    )
+    session.add(row)
+    await session.flush()
+    return row
