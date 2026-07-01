@@ -72,7 +72,8 @@ async def test_menu_create_callback_opens_webapp(make_callback, db_session, monk
     # Uses the real Telegram user (not the bot) for the auth request, with lang
     mock_issue.assert_awaited_once_with(cb.from_user, lang="ru")
     cb.answer.assert_called_once()
-    keyboard = cb.message.answer.call_args.kwargs["reply_markup"]
+    # edit=True → the welcome message is edited in place (no new message).
+    keyboard = cb.message.edit_text.call_args.kwargs["reply_markup"]
     assert keyboard.inline_keyboard[0][0].web_app.url == CONSUME_URL
 
 
@@ -125,7 +126,7 @@ async def test_start_register_deeplink_opens_webapp(
 
     message = make_message(text="/start register", user_id=30005)
     command = make_command(args="register")
-    await cmd_start(message, command=command, session=db_session)
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
 
     message.answer.assert_called_once()
     keyboard = message.answer.call_args.kwargs["reply_markup"]
@@ -142,7 +143,7 @@ async def test_start_register_skips_language_selection_for_new_user(
 
     message = make_message(text="/start register", user_id=30006)
     command = make_command(args="register")
-    await cmd_start(message, command=command, session=db_session)
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
 
     user, _ = await crud.get_or_create_user(db_session, 30006)
     assert user.language is None

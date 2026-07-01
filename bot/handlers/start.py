@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.db import crud
 from bot.keyboards.menu import chat_menu_button, welcome_keyboard
 from bot.locales import t
-from bot.services.platform_auth import PlatformAuthError, issue_auth_link
+from bot.services.platform_auth import AuthLink, PlatformAuthError, issue_auth
 
 logger = logging.getLogger(__name__)
 router = Router(name="start")
@@ -22,10 +22,10 @@ def detect_language(language_code: str | None) -> str:
     return "ru"
 
 
-async def _get_auth_url(tg_user, lang: str) -> str | None:
-    """Generate a one-shot consume_url. Returns None on error."""
+async def _get_auth(tg_user, lang: str) -> AuthLink | None:
+    """Fetch a fresh AuthLink (consume_url + has_shop). Returns None on error."""
     try:
-        return await issue_auth_link(tg_user, lang=lang)
+        return await issue_auth(tg_user, lang=lang)
     except PlatformAuthError as exc:
         logger.warning("Failed to pre-generate auth link: %s", exc)
         return None
@@ -35,17 +35,19 @@ async def _send_welcome(message: Message, bot: Bot, lang: str) -> None:
     assert message.from_user is not None
     name = (message.from_user.first_name or "").strip()
 
-    # Generate two separate one-shot URLs: one for the inline CTA button,
-    # one for the persistent menu button. They must be different tokens
-    # because each consume_url is single-use.
-    cta_url = await _get_auth_url(message.from_user, lang)
-    menu_url = await _get_auth_url(message.from_user, lang)
+    # One issue call per /start: the WebApp CTA and the persistent menu button
+    # both open the persistent Mini App (PLATFORM_WEBAPP_URL) — not the one-shot
+    # consume_url — so re-opening never hits `auth_expired`. The consume_url is
+    # used only for the "open on computer" browser link.
+    auth = await _get_auth(message.from_user, lang)
+    has_shop = auth.has_shop if auth else False
+    consume_url = auth.consume_url if auth else None
 
     await message.answer(
         t(lang, "start_welcome").format(name=name),
-        reply_markup=welcome_keyboard(lang, cta_url),
+        reply_markup=welcome_keyboard(lang, has_shop=has_shop, consume_url=consume_url),
     )
-    menu_btn = chat_menu_button(lang, menu_url)
+    menu_btn = chat_menu_button(lang)
     if menu_btn:
         await bot.set_chat_menu_button(
             chat_id=message.from_user.id,
@@ -146,9 +148,11 @@ async def select_language(callback: CallbackQuery, session: AsyncSession) -> Non
     await crud.log_event(session, user, "language_select", {"language": lang})
 
     name = (callback.from_user.first_name or "").strip()
-    cta_url = await _get_auth_url(callback.from_user, lang)
+    auth = await _get_auth(callback.from_user, lang)
+    has_shop = auth.has_shop if auth else False
+    consume_url = auth.consume_url if auth else None
     await callback.message.edit_text(
         t(lang, "start_welcome").format(name=name),
-        reply_markup=welcome_keyboard(lang, cta_url),
+        reply_markup=welcome_keyboard(lang, has_shop=has_shop, consume_url=consume_url),
     )
     await callback.answer()

@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 import httpx
 from aiogram.types import User
@@ -13,6 +14,31 @@ _ENDPOINT = "/api/auth/telegram/issue"
 
 class PlatformAuthError(Exception):
     """Raised when the platform fails to issue a Telegram auth link."""
+
+
+@dataclass(frozen=True)
+class AuthLink:
+    """Result of ``POST /api/auth/telegram/issue``.
+
+    ``consume_url`` is the one-shot browser login link. ``has_shop`` drives the
+    CTA label (create shop vs open platform); ``needs_setup`` mirrors the
+    platform's onboarding flag (True when the user has no shop yet).
+    """
+
+    consume_url: str
+    has_shop: bool
+    needs_setup: bool
+
+
+async def issue_auth(tg_user: User, lang: str | None = None) -> AuthLink:
+    """Request an :class:`AuthLink` for a live aiogram Telegram user."""
+    return await issue_auth_by(
+        tg_user.id,
+        first_name=tg_user.first_name,
+        last_name=tg_user.last_name,
+        username=tg_user.username,
+        lang=lang,
+    )
 
 
 async def issue_auth_link(tg_user: User, lang: str | None = None) -> str:
@@ -39,9 +65,34 @@ async def issue_auth_link_by(
 ) -> str:
     """Request a one-shot auth link from the platform by raw fields.
 
-    Returns the consume_url to open inside Telegram (WebApp) — it logs the user
-    in by telegram_id. ``lang`` (ru/uz) is forwarded so the platform can open in
-    the language chosen in the bot. Raises PlatformAuthError on any failure.
+    Returns the consume_url only. Kept for callers that just need the link
+    (register CTA, activation pushes). Use :func:`issue_auth_by` when the
+    ``has_shop`` flag is needed too. Raises PlatformAuthError on any failure.
+    """
+    return (
+        await issue_auth_by(
+            telegram_id,
+            first_name=first_name,
+            last_name=last_name,
+            username=username,
+            lang=lang,
+        )
+    ).consume_url
+
+
+async def issue_auth_by(
+    telegram_id: int,
+    *,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    username: str | None = None,
+    lang: str | None = None,
+) -> AuthLink:
+    """Request an :class:`AuthLink` from the platform by raw fields.
+
+    The ``consume_url`` logs the user in by telegram_id when opened in a browser.
+    ``lang`` (ru/uz) is forwarded so the platform can open in the language chosen
+    in the bot. Raises PlatformAuthError on any failure.
     """
     url = f"{settings.PLATFORM_URL.rstrip('/')}{_ENDPOINT}"
     payload = {
@@ -82,4 +133,8 @@ async def issue_auth_link_by(
     if not consume_url:
         logger.error("platform auth issue: no consume_url in response: %r", data)
         raise PlatformAuthError("platform response missing consume_url")
-    return consume_url
+    return AuthLink(
+        consume_url=consume_url,
+        has_shop=bool(data.get("has_shop", False)),
+        needs_setup=bool(data.get("needs_setup", True)),
+    )

@@ -134,7 +134,10 @@ class SurveyResponse(Base):
 
     # 8 survey answer fields
     category: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    platforms: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    # Postgres-native array in prod; JSON on SQLite (test engine can't render ARRAY).
+    platforms: Mapped[list[str] | None] = mapped_column(
+        ARRAY(Text).with_variant(JSON, "sqlite"), nullable=True
+    )
     commission: Mapped[str | None] = mapped_column(String(32), nullable=True)
     contacts: Mapped[str | None] = mapped_column(String(64), nullable=True)
     lost_case: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -1,7 +1,27 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from bot.handlers.start import cmd_start, detect_language, parse_utm, select_language
+from bot.services.platform_auth import AuthLink
+
+
+@pytest.fixture(autouse=True)
+def _mock_issue_auth(monkeypatch):
+    """Stub the platform call so /start tests never hit the network.
+
+    The welcome flow calls issue_auth to pre-generate the desktop consume_url
+    and read has_shop; return a fixed AuthLink for both start.py and its use in
+    select_language."""
+    monkeypatch.setattr(
+        "bot.handlers.start.issue_auth",
+        AsyncMock(
+            return_value=AuthLink(
+                consume_url="https://platform.test/consume/x",
+                has_shop=False,
+                needs_setup=True,
+            )
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +71,7 @@ def test_detect_language_defaults_to_ru():
 async def test_start_new_user_shows_personalised_welcome(make_message, make_command, db_session):
     message = make_message(text="/start", first_name="Алиса")
     command = make_command(args=None)
-    await cmd_start(message, command=command, session=db_session)
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
     message.answer.assert_called_once()
     text = message.answer.call_args[0][0]
     assert "Алиса" in text  # personalised by first_name
@@ -67,7 +87,7 @@ async def test_start_new_user_shows_personalised_welcome(make_message, make_comm
 async def test_start_autodetects_uz_from_language_code(make_message, make_command, db_session):
     message = make_message(text="/start", user_id=10010, language_code="uz")
     command = make_command(args=None)
-    await cmd_start(message, command=command, session=db_session)
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
 
     from bot.db.crud import get_or_create_user
     user, _ = await get_or_create_user(db_session, 10010)
@@ -80,7 +100,7 @@ async def test_start_autodetects_uz_from_language_code(make_message, make_comman
 async def test_start_with_utm_saves_to_db(make_message, make_command, db_session):
     message = make_message(text="/start utm_tgads_uzb4ru", user_id=10001)
     command = make_command(args="utm_tgads_uzb4ru")
-    await cmd_start(message, command=command, session=db_session)
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
 
     from bot.db.crud import get_or_create_user
     user, _ = await get_or_create_user(db_session, 10001)
@@ -97,7 +117,7 @@ async def test_start_returning_user_shows_welcome(make_message, make_command, db
 
     message = make_message(text="/start", user_id=10002, first_name="Боб")
     command = make_command(args=None)
-    await cmd_start(message, command=command, session=db_session)
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
     message.answer.assert_called_once()
     # Personalised welcome (no language-selection blocker)
     text = message.answer.call_args[0][0]
@@ -114,7 +134,7 @@ async def test_utm_not_overwritten_on_second_start(make_message, make_command, d
 
     message = make_message(text="/start utm_new_campaign", user_id=10003)
     command = make_command(args="utm_new_campaign")
-    await cmd_start(message, command=command, session=db_session)
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
 
     user2, _ = await get_or_create_user(db_session, 10003)
     assert user2.utm_source == "original"

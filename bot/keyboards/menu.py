@@ -7,22 +7,22 @@ from bot.locales import t
 _OTHER_LANG = {"ru": "uz", "uz": "ru"}
 
 
-def _create_shop_button(lang: str, cta_url: str | None = None) -> InlineKeyboardButton:
-    """Primary CTA.
-    When `cta_url` is provided (one-shot consume_url pre-generated on /start),
-    or PLATFORM_WEBAPP_URL is configured, the button is a WebApp button — user
-    taps once and lands in the cabinet with no intermediate step.
-    Falls back to the menu:create callback only when no URL is available.
+def _create_shop_button(
+    lang: str, has_shop: bool = False, webapp_url: str | None = None
+) -> InlineKeyboardButton:
+    """Primary CTA — a WebApp button opening the persistent Mini App (/login).
+
+    The Mini App auto-logs the user in by Telegram initData, so the same URL can
+    be re-opened any number of times without `auth_expired` (unlike a one-shot
+    consume_url). The label depends on `has_shop`: "open platform" when the user
+    already has a shop, "create shop" otherwise. Falls back to the menu:create
+    callback only when no WebApp URL is available at all.
     """
-    url = cta_url or settings.PLATFORM_WEBAPP_URL
+    label = t(lang, "btn_open_platform" if has_shop else "btn_create_shop")
+    url = webapp_url or settings.PLATFORM_WEBAPP_URL
     if url:
-        return InlineKeyboardButton(
-            text=t(lang, "btn_create_shop"),
-            web_app=WebAppInfo(url=url),
-        )
-    return InlineKeyboardButton(
-        text=t(lang, "btn_create_shop"), callback_data="menu:create"
-    )
+        return InlineKeyboardButton(text=label, web_app=WebAppInfo(url=url))
+    return InlineKeyboardButton(text=label, callback_data="menu:create")
 
 
 def chat_menu_button(lang: str, url: str | None = None) -> MenuButtonWebApp | None:
@@ -40,20 +40,30 @@ def chat_menu_button(lang: str, url: str | None = None) -> MenuButtonWebApp | No
     )
 
 
-def welcome_keyboard(lang: str, cta_url: str | None = None) -> InlineKeyboardMarkup:
-    """First-screen keyboard. Pass `cta_url` to embed a one-shot auth link
-    directly in the CTA button — user taps once and lands in the cabinet."""
+def welcome_keyboard(
+    lang: str, *, has_shop: bool = False, consume_url: str | None = None
+) -> InlineKeyboardMarkup:
+    """First-screen keyboard.
+
+    Row 1: WebApp CTA opening the persistent Mini App (label by `has_shop`).
+    Row 2 (only when `consume_url` given): a plain url-button "open on computer"
+    carrying the one-shot consume_url — for logging in from a desktop browser.
+    Then Demo/Support and the language toggle.
+    """
     other = _OTHER_LANG.get(lang, "uz")
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [_create_shop_button(lang, cta_url)],
-            [
-                InlineKeyboardButton(text=t(lang, "btn_demo"), callback_data="menu:demo"),
-                InlineKeyboardButton(text=t(lang, "btn_support"), callback_data="menu:support"),
-            ],
-            [InlineKeyboardButton(text=t(lang, "btn_lang_toggle"), callback_data=f"lang:{other}")],
-        ]
-    )
+    rows: list[list[InlineKeyboardButton]] = [[_create_shop_button(lang, has_shop)]]
+    if consume_url:
+        rows.append(
+            [InlineKeyboardButton(text=t(lang, "btn_open_desktop"), url=consume_url)]
+        )
+    rows.extend([
+        [
+            InlineKeyboardButton(text=t(lang, "btn_demo"), callback_data="menu:demo"),
+            InlineKeyboardButton(text=t(lang, "btn_support"), callback_data="menu:support"),
+        ],
+        [InlineKeyboardButton(text=t(lang, "btn_lang_toggle"), callback_data=f"lang:{other}")],
+    ])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def research_keyboard(lang: str) -> InlineKeyboardMarkup:

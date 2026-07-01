@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+from aiogram.types import Message
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from bot.db.engine import Base
@@ -61,7 +63,8 @@ def make_callback():
         cb = MagicMock()
         cb.data = data
         cb.answer = AsyncMock()
-        cb.message = MagicMock()
+        # spec=Message so handlers' isinstance(callback.message, Message) passes.
+        cb.message = MagicMock(spec=Message)
         cb.message.answer = AsyncMock()
         cb.message.edit_text = AsyncMock()
         cb.from_user = MagicMock()

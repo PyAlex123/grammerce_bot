@@ -18,7 +18,9 @@ texts: dict[str, str] = {
         "🌐 grammerce.io"
     ),
     # main menu buttons
-    "btn_create_shop": "🏪 Создать магазин",
+    "btn_create_shop": "✅ Создать магазин",
+    "btn_open_platform": "🚀 Открыть платформу",
+    "btn_open_desktop": "🖥 Открыть на компьютере",
     "btn_demo": "👀 Демо",
     "btn_support": "💬 Поддержка",
     "btn_lang_toggle": "🇺🇿 O'zbekcha",
