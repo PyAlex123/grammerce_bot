@@ -7,7 +7,7 @@ _NICHES = [
     ("clothes", "niche_clothes"),
     ("flowers", "niche_flowers"),
     # ("food", "niche_food"),           # TODO: добавить когда будет демо-бот
-    ("cosmetics", "niche_cosmetics"),
+    # ("cosmetics", "niche_cosmetics"),  # TODO: включить когда будет демо-магазин косметики
     ("electronics", "niche_electronics"),
 ]
 

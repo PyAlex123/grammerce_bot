@@ -43,7 +43,7 @@ class Settings(BaseSettings):
             "clothes": self.DEMO_BOT_CLOTHES,
             "flowers": self.DEMO_BOT_FLOWERS,
             # "food": self.DEMO_BOT_FOOD,           # TODO: включить когда будет демо-бот
-            "cosmetics": self.DEMO_BOT_COSMETICS,
+            # "cosmetics": self.DEMO_BOT_COSMETICS,  # TODO: включить когда будет демо-магазин косметики
             "electronics": self.DEMO_BOT_ELECTRONICS,
         }
 

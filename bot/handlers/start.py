@@ -83,9 +83,15 @@ async def cmd_start(
     )
 
     if command.args == "register":
-        from bot.handlers.register import send_create_shop_cta
-
-        await send_create_shop_cta(message, session, user)
+        # Ад-дип-линк "создать магазин" ведёт сразу на обычное приветствие:
+        # его основная WebApp-кнопка и так открывает платформу напрямую.
+        # Отдельный урезанный CTA-экран убран — он заменял полное меню и
+        # заставлял пользователя жать /start, чтобы вернуть его.
+        lang = user.language or detect_language(message.from_user.language_code)
+        if not user.language:
+            await crud.set_language(session, user, lang)
+        await crud.log_event(session, user, "register_enter", {"source": "deeplink"})
+        await _send_welcome(message, bot, lang)
         return
 
     if command.args and command.args.startswith("research_"):
