@@ -8,18 +8,26 @@ _OTHER_LANG = {"ru": "uz", "uz": "ru"}
 
 
 def _create_shop_button(
-    lang: str, has_shop: bool = False, webapp_url: str | None = None
+    lang: str,
+    has_shop: bool = False,
+    webapp_url: str | None = None,
+    consume_url: str | None = None,
 ) -> InlineKeyboardButton:
-    """Primary CTA — a WebApp button opening the persistent Mini App (/login).
+    """Primary CTA — a WebApp button opening the platform as a Mini App (TWA).
 
-    The Mini App auto-logs the user in by Telegram initData, so the same URL can
-    be re-opened any number of times without `auth_expired` (unlike a one-shot
-    consume_url). The label depends on `has_shop`: "open platform" when the user
-    already has a shop, "create shop" otherwise. Falls back to the menu:create
-    callback only when no WebApp URL is available at all.
+    URL priority: an explicit ``webapp_url`` → the reusable ``PLATFORM_WEBAPP_URL``
+    (auto-logs in by Telegram initData, re-openable without `auth_expired`) →
+    the one-shot ``consume_url`` (still opens inside Telegram, logs in once).
+    The label depends on `has_shop`: "open platform" when the user already has a
+    shop, "create shop" otherwise.
+
+    Only when no URL is available at all do we fall back to the ``menu:create``
+    callback. That callback replaces the whole welcome menu with a separate
+    "create shop" screen, so we avoid it whenever any URL exists — the button
+    must open the Mini App directly, not swap out the menu.
     """
     label = t(lang, "btn_open_platform" if has_shop else "btn_create_shop")
-    url = webapp_url or settings.PLATFORM_WEBAPP_URL
+    url = webapp_url or settings.PLATFORM_WEBAPP_URL or consume_url
     if url:
         return InlineKeyboardButton(text=label, web_app=WebAppInfo(url=url))
     return InlineKeyboardButton(text=label, callback_data="menu:create")
@@ -51,7 +59,9 @@ def welcome_keyboard(
     Then Demo/Support and the language toggle.
     """
     other = _OTHER_LANG.get(lang, "uz")
-    rows: list[list[InlineKeyboardButton]] = [[_create_shop_button(lang, has_shop)]]
+    rows: list[list[InlineKeyboardButton]] = [
+        [_create_shop_button(lang, has_shop, consume_url=consume_url)]
+    ]
     if consume_url:
         rows.append(
             [InlineKeyboardButton(text=t(lang, "btn_open_desktop"), url=consume_url)]

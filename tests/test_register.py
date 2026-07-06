@@ -11,7 +11,7 @@ from bot.handlers.register import (
     send_create_shop_cta,
 )
 from bot.handlers.start import cmd_start
-from bot.services.platform_auth import PlatformAuthError
+from bot.services.platform_auth import AuthLink, PlatformAuthError
 
 CONSUME_URL = "https://grammerce.io/api/auth/telegram/consume?token=test-uuid"
 
@@ -117,12 +117,24 @@ async def test_create_shop_platform_error_logs_event(
 
 
 @pytest.mark.asyncio
-async def test_start_register_deeplink_opens_webapp(
+async def test_start_register_deeplink_shows_welcome_with_webapp_cta(
     make_message, make_command, db_session, monkeypatch
 ):
+    """`/start register` lands on the full welcome (not a separate create-shop
+    screen), and its primary CTA opens the platform as a Mini App directly.
+
+    With no PLATFORM_WEBAPP_URL the button falls back to the one-shot
+    consume_url as a WebApp — never to the menu:create callback (which used to
+    replace the whole welcome menu with a lone "open platform" button)."""
     monkeypatch.setattr(
-        "bot.handlers.register.issue_auth_link", AsyncMock(return_value=CONSUME_URL)
+        "bot.handlers.start.issue_auth",
+        AsyncMock(
+            return_value=AuthLink(
+                consume_url=CONSUME_URL, has_shop=False, needs_setup=True
+            )
+        ),
     )
+    monkeypatch.setattr("bot.config.settings.PLATFORM_WEBAPP_URL", "")
 
     message = make_message(text="/start register", user_id=30005)
     command = make_command(args="register")
@@ -130,26 +142,37 @@ async def test_start_register_deeplink_opens_webapp(
 
     message.answer.assert_called_once()
     keyboard = message.answer.call_args.kwargs["reply_markup"]
-    assert keyboard.inline_keyboard[0][0].web_app.url == CONSUME_URL
+    primary = keyboard.inline_keyboard[0][0]
+    assert primary.callback_data is None  # not the menu:create callback anymore
+    assert primary.web_app is not None    # opens inside Telegram (TWA)
+    assert primary.web_app.url == CONSUME_URL
 
 
 @pytest.mark.asyncio
-async def test_start_register_skips_language_selection_for_new_user(
+async def test_start_register_shows_welcome_without_language_screen(
     make_message, make_command, db_session, monkeypatch
 ):
+    """register deep-link never shows a blocking language screen — the welcome
+    is rendered directly (language is silently auto-detected, like plain /start)."""
     monkeypatch.setattr(
-        "bot.handlers.register.issue_auth_link", AsyncMock(return_value=CONSUME_URL)
+        "bot.handlers.start.issue_auth",
+        AsyncMock(
+            return_value=AuthLink(
+                consume_url=CONSUME_URL, has_shop=False, needs_setup=True
+            )
+        ),
     )
 
-    message = make_message(text="/start register", user_id=30006)
+    message = make_message(text="/start register", user_id=30006, language_code="ru")
     command = make_command(args="register")
     await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
 
-    user, _ = await crud.get_or_create_user(db_session, 30006)
-    assert user.language is None
     message.answer.assert_called_once()
     text = message.answer.call_args[0][0]
-    assert "Tilni tanlang" not in text
+    assert "Tilni tanlang" not in text  # no language-selection screen
+    assert "grammerce.io" in text        # the normal welcome is shown
+    user, _ = await crud.get_or_create_user(db_session, 30006)
+    assert user.language == "ru"          # auto-detected, not a blocking prompt
 
 
 @pytest.mark.asyncio
