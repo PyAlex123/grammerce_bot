@@ -68,10 +68,10 @@ def test_detect_language_defaults_to_ru():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_start_new_user_shows_personalised_welcome(make_message, make_command, db_session):
+async def test_start_new_user_shows_personalised_welcome(make_message, make_command, db_session, make_state):
     message = make_message(text="/start", first_name="Алиса")
     command = make_command(args=None)
-    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock(), state=make_state())
     message.answer.assert_called_once()
     text = message.answer.call_args[0][0]
     assert "Алиса" in text  # personalised by first_name
@@ -84,10 +84,10 @@ async def test_start_new_user_shows_personalised_welcome(make_message, make_comm
 
 
 @pytest.mark.asyncio
-async def test_start_autodetects_uz_from_language_code(make_message, make_command, db_session):
+async def test_start_autodetects_uz_from_language_code(make_message, make_command, db_session, make_state):
     message = make_message(text="/start", user_id=10010, language_code="uz")
     command = make_command(args=None)
-    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock(), state=make_state())
 
     from bot.db.crud import get_or_create_user
     user, _ = await get_or_create_user(db_session, 10010)
@@ -97,10 +97,10 @@ async def test_start_autodetects_uz_from_language_code(make_message, make_comman
 
 
 @pytest.mark.asyncio
-async def test_start_with_utm_saves_to_db(make_message, make_command, db_session):
+async def test_start_with_utm_saves_to_db(make_message, make_command, db_session, make_state):
     message = make_message(text="/start utm_tgads_uzb4ru", user_id=10001)
     command = make_command(args="utm_tgads_uzb4ru")
-    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock(), state=make_state())
 
     from bot.db.crud import get_or_create_user
     user, _ = await get_or_create_user(db_session, 10001)
@@ -109,7 +109,7 @@ async def test_start_with_utm_saves_to_db(make_message, make_command, db_session
 
 
 @pytest.mark.asyncio
-async def test_start_returning_user_shows_welcome(make_message, make_command, db_session):
+async def test_start_returning_user_shows_welcome(make_message, make_command, db_session, make_state):
     from bot.db.crud import get_or_create_user, set_language
     user, _ = await get_or_create_user(db_session, 10002, "returning")
     await set_language(db_session, user, "ru")
@@ -117,7 +117,7 @@ async def test_start_returning_user_shows_welcome(make_message, make_command, db
 
     message = make_message(text="/start", user_id=10002, first_name="Боб")
     command = make_command(args=None)
-    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock(), state=make_state())
     message.answer.assert_called_once()
     # Personalised welcome (no language-selection blocker)
     text = message.answer.call_args[0][0]
@@ -126,7 +126,7 @@ async def test_start_returning_user_shows_welcome(make_message, make_command, db
 
 
 @pytest.mark.asyncio
-async def test_utm_not_overwritten_on_second_start(make_message, make_command, db_session):
+async def test_utm_not_overwritten_on_second_start(make_message, make_command, db_session, make_state):
     from bot.db.crud import get_or_create_user, save_utm
     user, _ = await get_or_create_user(db_session, 10003)
     await save_utm(db_session, user, "original", "tg", "original_campaign")
@@ -134,7 +134,7 @@ async def test_utm_not_overwritten_on_second_start(make_message, make_command, d
 
     message = make_message(text="/start utm_new_campaign", user_id=10003)
     command = make_command(args="utm_new_campaign")
-    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock(), state=make_state())
 
     user2, _ = await get_or_create_user(db_session, 10003)
     assert user2.utm_source == "original"

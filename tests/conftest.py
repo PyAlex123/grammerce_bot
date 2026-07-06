@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -82,4 +83,16 @@ def make_command():
         cmd = MagicMock()
         cmd.args = args
         return cmd
+    return _make
+
+
+@pytest.fixture
+def make_state():
+    """Factory for a fake FSMContext (aiogram)."""
+    def _make() -> FSMContext:
+        state = MagicMock(spec=FSMContext)
+        state.set_state = AsyncMock()
+        state.clear = AsyncMock()
+        state.get_state = AsyncMock(return_value=None)
+        return state
     return _make

@@ -3,6 +3,7 @@ import logging
 from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.filters.command import CommandObject
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,7 +74,11 @@ def parse_utm(payload: str | None) -> dict[str, str | None]:
 
 @router.message(CommandStart())
 async def cmd_start(
-    message: Message, command: CommandObject, session: AsyncSession, bot: Bot
+    message: Message,
+    command: CommandObject,
+    session: AsyncSession,
+    bot: Bot,
+    state: FSMContext,
 ) -> None:
     assert message.from_user is not None
     user, _ = await crud.get_or_create_user(
@@ -81,6 +86,14 @@ async def cmd_start(
         telegram_id=message.from_user.id,
         username=message.from_user.username,
     )
+
+    if command.args == "support":
+        # Deep-link из пуша платформы «💬 Написать в поддержку» — открываем чат
+        # с оператором (тот же флоу, что кнопка «Живой оператор»), без приветствия.
+        from bot.handlers.support import open_live_operator  # lazy — избегаем цикл. импорта
+
+        await open_live_operator(message, message.from_user, state, session)
+        return
 
     if command.args == "register":
         # Ад-дип-линк "создать магазин" ведёт сразу на обычное приветствие:

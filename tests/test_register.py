@@ -118,7 +118,7 @@ async def test_create_shop_platform_error_logs_event(
 
 @pytest.mark.asyncio
 async def test_start_register_deeplink_shows_welcome_with_webapp_cta(
-    make_message, make_command, db_session, monkeypatch
+    make_message, make_command, db_session, monkeypatch, make_state
 ):
     """`/start register` lands on the full welcome (not a separate create-shop
     screen), and its primary CTA opens the platform as a Mini App directly.
@@ -138,7 +138,7 @@ async def test_start_register_deeplink_shows_welcome_with_webapp_cta(
 
     message = make_message(text="/start register", user_id=30005)
     command = make_command(args="register")
-    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock(), state=make_state())
 
     message.answer.assert_called_once()
     keyboard = message.answer.call_args.kwargs["reply_markup"]
@@ -150,7 +150,7 @@ async def test_start_register_deeplink_shows_welcome_with_webapp_cta(
 
 @pytest.mark.asyncio
 async def test_start_register_shows_welcome_without_language_screen(
-    make_message, make_command, db_session, monkeypatch
+    make_message, make_command, db_session, monkeypatch, make_state
 ):
     """register deep-link never shows a blocking language screen — the welcome
     is rendered directly (language is silently auto-detected, like plain /start)."""
@@ -165,7 +165,7 @@ async def test_start_register_shows_welcome_without_language_screen(
 
     message = make_message(text="/start register", user_id=30006, language_code="ru")
     command = make_command(args="register")
-    await cmd_start(message, command=command, session=db_session, bot=AsyncMock())
+    await cmd_start(message, command=command, session=db_session, bot=AsyncMock(), state=make_state())
 
     message.answer.assert_called_once()
     text = message.answer.call_args[0][0]

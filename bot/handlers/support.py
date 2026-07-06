@@ -36,6 +36,20 @@ async def show_support(message: Message, session: AsyncSession) -> None:
     await message.answer(t(lang, "support_intro"), reply_markup=support_keyboard(lang))
 
 
+async def open_live_operator(target_message, tg_user, state: FSMContext, session: AsyncSession) -> None:
+    """Открыть чат с оператором: перевести пользователя в SupportStates.waiting_message
+    и показать приглашение написать вопрос. Общий код для FAQ-кнопки «Живой оператор»
+    и deep-link ?start=support. `tg_user` — реальный пользователь Telegram (в callbacks
+    ``callback.message.from_user`` это бот, поэтому его передают отдельно)."""
+    user, _ = await crud.get_or_create_user(
+        session, telegram_id=tg_user.id, username=tg_user.username
+    )
+    lang = user.language or "ru"
+    await state.set_state(SupportStates.waiting_message)
+    await crud.log_event(session, user, "support_faq", {"topic": "operator"})
+    await target_message.answer(t(lang, "ask_question"))
+
+
 @router.callback_query(F.data == "menu:support")
 async def open_support(callback: CallbackQuery, session: AsyncSession) -> None:
     """Entry point from the welcome-screen inline 'Поддержка' button."""
@@ -63,9 +77,7 @@ async def handle_faq(
     lang = user.language or "ru"
 
     if topic == "operator":
-        await state.set_state(SupportStates.waiting_message)
-        await crud.log_event(session, user, "support_faq", {"topic": "operator"})
-        await callback.message.answer(t(lang, "ask_question"))
+        await open_live_operator(callback.message, callback.from_user, state, session)
         await callback.answer()
         return
 

@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 from aiogram.fsm.context import FSMContext
 
+from bot.handlers.start import cmd_start
 from bot.handlers.support import show_support, handle_faq, receive_support_message
 from bot.locales.ru import texts as RU
 from bot.states.support import SupportStates
@@ -217,3 +218,26 @@ async def test_support_ticket_logs_event(make_message, db_session):
     )
     events = result.scalars().all()
     assert len(events) >= 1
+
+
+@pytest.mark.asyncio
+async def test_start_support_deeplink_opens_operator(
+    make_message, make_command, make_state, db_session
+):
+    """?start=support → тот же флоу, что «Живой оператор»: состояние ожидания +
+    приглашение написать вопрос, БЕЗ приветствия."""
+    from bot.db.crud import get_or_create_user, set_language
+    user, _ = await get_or_create_user(db_session, 40008)
+    await set_language(db_session, user, "ru")
+    await db_session.commit()
+
+    message = make_message(text="/start support", user_id=40008)
+    command = make_command(args="support")
+    state = make_state()
+    await cmd_start(
+        message, command=command, session=db_session, bot=AsyncMock(), state=state
+    )
+
+    state.set_state.assert_called_once_with(SupportStates.waiting_message)
+    message.answer.assert_called_once()
+    assert message.answer.call_args[0][0] == RU["ask_question"]
