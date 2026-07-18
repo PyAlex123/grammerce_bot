@@ -17,6 +17,17 @@ texts: dict[str, str] = {
         "✓ Buyurtma va mijozlar bir joyda\n\n"
         "🌐 grammerce.io"
     ),
+    # partner (referral) deep-link ?start=ref_<code>
+    "referral_welcome_percent": (
+        "🎁 Siz hamkorlik havolasi orqali keldingiz — «kalit topshirish» "
+        "ulanishiga {value}% chegirma sizni kutmoqda.\n"
+        "Boshlash uchun «Do'kon yaratish» tugmasini bosing."
+    ),
+    "referral_welcome_fixed": (
+        "🎁 Siz hamkorlik havolasi orqali keldingiz — «kalit topshirish» "
+        "ulanishiga {value} so'm chegirma sizni kutmoqda.\n"
+        "Boshlash uchun «Do'kon yaratish» tugmasini bosing."
+    ),
     # main menu buttons
     "btn_create_shop": "✅ Do'kon yaratish",
     "btn_open_platform": "🚀 Platformani ochish",

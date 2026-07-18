@@ -17,6 +17,17 @@ texts: dict[str, str] = {
         "✓ Заказы и клиенты в одном месте\n\n"
         "🌐 grammerce.io"
     ),
+    # partner (referral) deep-link ?start=ref_<code>
+    "referral_welcome_percent": (
+        "🎁 Вы пришли по партнёрской ссылке — вас ждёт скидка {value}% "
+        "на подключение под ключ.\n"
+        "Нажмите «Создать магазин», чтобы начать."
+    ),
+    "referral_welcome_fixed": (
+        "🎁 Вы пришли по партнёрской ссылке — вас ждёт скидка {value} сум "
+        "на подключение под ключ.\n"
+        "Нажмите «Создать магазин», чтобы начать."
+    ),
     # main menu buttons
     "btn_create_shop": "✅ Создать магазин",
     "btn_open_platform": "🚀 Открыть платформу",

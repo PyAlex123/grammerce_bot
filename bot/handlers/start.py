@@ -11,6 +11,7 @@ from bot.db import crud
 from bot.keyboards.menu import chat_menu_button, welcome_keyboard
 from bot.locales import t
 from bot.services.platform_auth import AuthLink, PlatformAuthError, issue_auth
+from bot.services.platform_referrals import ReferralDiscount, track_referral
 
 logger = logging.getLogger(__name__)
 router = Router(name="start")
@@ -54,6 +55,15 @@ async def _send_welcome(message: Message, bot: Bot, lang: str) -> None:
             chat_id=message.from_user.id,
             menu_button=menu_btn,
         )
+
+
+def _referral_text(lang: str, discount: ReferralDiscount) -> str:
+    """Приветствие для пришедшего по партнёрской ссылке."""
+    if discount.type == "percent":
+        value = f"{discount.value:g}"
+        return t(lang, "referral_welcome_percent").format(value=value)
+    value = f"{int(discount.value):,}".replace(",", " ")
+    return t(lang, "referral_welcome_fixed").format(value=value)
 
 
 def parse_utm(payload: str | None) -> dict[str, str | None]:
@@ -104,6 +114,32 @@ async def cmd_start(
         if not user.language:
             await crud.set_language(session, user, lang)
         await crud.log_event(session, user, "register_enter", {"source": "deeplink"})
+        await _send_welcome(message, bot, lang)
+        return
+
+    if command.args and command.args.startswith("ref_"):
+        # Партнёрская ссылка: фиксируем заход на платформе (fire-and-forget),
+        # показываем скидку, если бэкенд её вернул, и продолжаем обычный
+        # онбординг — в отличие от support/research, welcome обязателен.
+        code = command.args[4:]
+        lang = user.language or detect_language(message.from_user.language_code)
+        if not user.language:
+            await crud.set_language(session, user, lang)
+        discount = (
+            await track_referral(
+                code,
+                message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+            )
+            if code
+            else None
+        )
+        await crud.log_event(
+            session, user, "referral_enter", {"code": code, "ok": discount is not None}
+        )
+        if discount:
+            await message.answer(_referral_text(lang, discount))
         await _send_welcome(message, bot, lang)
         return
 

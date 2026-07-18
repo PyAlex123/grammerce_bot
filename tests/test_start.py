@@ -141,6 +141,117 @@ async def test_utm_not_overwritten_on_second_start(make_message, make_command, d
 
 
 # ---------------------------------------------------------------------------
+# Referral deep-link: /start ref_<code>
+# ---------------------------------------------------------------------------
+
+async def _events(db_session, event_type: str):
+    from sqlalchemy import select as sa_select
+    from bot.db.models import BotEvent
+
+    await db_session.commit()
+    result = await db_session.execute(
+        sa_select(BotEvent).where(BotEvent.event_type == event_type)
+    )
+    return result.scalars().all()
+
+
+@pytest.mark.asyncio
+async def test_start_ref_with_discount_shows_notice_then_welcome(
+    make_message, make_command, db_session, make_state, monkeypatch
+):
+    from bot.services.platform_referrals import ReferralDiscount
+
+    tracker = AsyncMock(return_value=ReferralDiscount(type="fixed", value=500000))
+    monkeypatch.setattr("bot.handlers.start.track_referral", tracker)
+
+    message = make_message(text="/start ref_ABC", user_id=30001, first_name="Иван")
+    await cmd_start(message, command=make_command(args="ref_ABC"),
+                    session=db_session, bot=AsyncMock(), state=make_state())
+
+    # Реф-код передан бэкенду без префикса
+    assert tracker.call_args[0][0] == "ABC"
+    assert tracker.call_args[0][1] == 30001
+
+    # Два сообщения: уведомление о скидке, затем welcome с клавиатурой
+    assert message.answer.call_count == 2
+    notice = message.answer.call_args_list[0][0][0]
+    assert "500 000" in notice
+    welcome = message.answer.call_args_list[1]
+    assert "Иван" in welcome[0][0]
+    assert welcome.kwargs.get("reply_markup") is not None
+
+    events = await _events(db_session, "referral_enter")
+    assert len(events) == 1
+    assert events[0].payload == {"code": "ABC", "ok": True}
+
+
+@pytest.mark.asyncio
+async def test_start_ref_unknown_code_shows_only_welcome(
+    make_message, make_command, db_session, make_state, monkeypatch
+):
+    monkeypatch.setattr("bot.handlers.start.track_referral", AsyncMock(return_value=None))
+
+    message = make_message(text="/start ref_NOPE", user_id=30002)
+    await cmd_start(message, command=make_command(args="ref_NOPE"),
+                    session=db_session, bot=AsyncMock(), state=make_state())
+
+    message.answer.assert_called_once()
+    assert message.answer.call_args.kwargs.get("reply_markup") is not None
+
+    events = await _events(db_session, "referral_enter")
+    assert events[0].payload == {"code": "NOPE", "ok": False}
+
+
+@pytest.mark.asyncio
+async def test_start_ref_percent_discount_text(
+    make_message, make_command, db_session, make_state, monkeypatch
+):
+    from bot.services.platform_referrals import ReferralDiscount
+
+    monkeypatch.setattr(
+        "bot.handlers.start.track_referral",
+        AsyncMock(return_value=ReferralDiscount(type="percent", value=30)),
+    )
+
+    message = make_message(text="/start ref_P", user_id=30003)
+    await cmd_start(message, command=make_command(args="ref_P"),
+                    session=db_session, bot=AsyncMock(), state=make_state())
+
+    assert "30%" in message.answer.call_args_list[0][0][0]
+
+
+@pytest.mark.asyncio
+async def test_start_ref_empty_code_skips_backend(
+    make_message, make_command, db_session, make_state, monkeypatch
+):
+    tracker = AsyncMock(return_value=None)
+    monkeypatch.setattr("bot.handlers.start.track_referral", tracker)
+
+    message = make_message(text="/start ref_", user_id=30004)
+    await cmd_start(message, command=make_command(args="ref_"),
+                    session=db_session, bot=AsyncMock(), state=make_state())
+
+    tracker.assert_not_called()
+    message.answer.assert_called_once()  # welcome всё равно показан
+
+
+@pytest.mark.asyncio
+async def test_start_ref_autodetects_language(
+    make_message, make_command, db_session, make_state, monkeypatch
+):
+    monkeypatch.setattr("bot.handlers.start.track_referral", AsyncMock(return_value=None))
+
+    message = make_message(text="/start ref_UZ", user_id=30005, language_code="uz")
+    await cmd_start(message, command=make_command(args="ref_UZ"),
+                    session=db_session, bot=AsyncMock(), state=make_state())
+
+    from bot.db.crud import get_or_create_user
+    user, _ = await get_or_create_user(db_session, 30005)
+    assert user.language == "uz"
+    assert "Salom" in message.answer.call_args[0][0]
+
+
+# ---------------------------------------------------------------------------
 # Language selection callback
 # ---------------------------------------------------------------------------
 
