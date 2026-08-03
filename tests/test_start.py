@@ -163,6 +163,39 @@ async def test_admin_start_shows_both_login_buttons(
     assert any(b.url == "https://platform.test/consume/x" for b in buttons)
 
 
+@pytest.mark.asyncio
+async def test_consume_url_regenerated_on_every_start(
+    make_message, make_command, db_session, make_state, monkeypatch
+):
+    """consume_url одноразовый и живёт 5 минут — на каждый /start берём свежий,
+    старое сообщение из истории чата переиспользовать нельзя."""
+    issue = AsyncMock(
+        side_effect=[
+            AuthLink(consume_url="https://platform.test/consume/1",
+                     has_shop=False, needs_setup=True),
+            AuthLink(consume_url="https://platform.test/consume/2",
+                     has_shop=True, needs_setup=False),
+        ]
+    )
+    monkeypatch.setattr("bot.handlers.start.issue_auth", issue)
+
+    message = make_message(text="/start", user_id=40001)
+    for _ in range(2):
+        await cmd_start(message, command=make_command(args=None),
+                        session=db_session, bot=AsyncMock(), state=make_state())
+
+    assert issue.await_count == 2
+    urls = [
+        b.url
+        for call in message.answer.call_args_list
+        for row in call.kwargs["reply_markup"].inline_keyboard
+        for b in row
+        if b.url
+    ]
+    assert "https://platform.test/consume/1" in urls
+    assert "https://platform.test/consume/2" in urls
+
+
 # ---------------------------------------------------------------------------
 # Referral deep-link: /start ref_<code>
 # ---------------------------------------------------------------------------
