@@ -101,6 +101,20 @@ class BotPushSend(Base):
     user: Mapped["BotUser"] = relationship(back_populates="push_sends")
 
 
+class BotBroadcast(Base):
+    """One row per manual broadcast run — audit trail for admin mailings."""
+
+    __tablename__ = "bot_broadcasts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    segment: Mapped[str] = mapped_column(String(32), nullable=False)
+    lang: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    total: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    delivered: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    failed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class SurveySource(Base):
     """One row per (user, source) — tracks deep-link clicks for funnel analytics."""
 

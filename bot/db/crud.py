@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db.models import (
+    BotBroadcast,
     BotDemoView,
     BotEvent,
     BotPushSend,
@@ -279,6 +280,107 @@ async def save_survey_response(
         lang=meta.get("lang"),
         platform=meta.get("platform"),
         raw_payload=payload,
+    )
+    session.add(row)
+    await session.flush()
+    return row
+
+
+# ---------------------------------------------------------------------------
+# Broadcast segments (manual admin mailings)
+# ---------------------------------------------------------------------------
+
+# Ordered so the segment picker renders in funnel order. Keys are stable and
+# used both in callback data and in the BotBroadcast audit rows.
+BROADCAST_SEGMENTS: tuple[str, ...] = (
+    "all",
+    "no_shop",
+    "no_product",
+    "no_training",
+    "trial",
+    "paid",
+    "referral",
+)
+
+
+def _segment_conditions(segment: str) -> list:
+    """WHERE-clauses selecting a broadcast segment on ``BotUser``.
+
+    Each segment is an independent filter over the same funnel state that drives
+    the activation pushes (see ``push_scheduler.current_step``). ``referral``
+    matches anyone who ever entered via a partner link (``referral_enter`` event).
+    """
+    if segment == "all":
+        return []
+    if segment == "no_shop":
+        return [BotUser.registered_at.is_(None)]
+    if segment == "no_product":
+        return [BotUser.registered_at.is_not(None), BotUser.product_count == 0]
+    if segment == "no_training":
+        return [BotUser.product_count > 0, BotUser.training_completed.is_(False)]
+    if segment == "trial":
+        return [BotUser.trial_ends_at.is_not(None), BotUser.plan_paid.is_(False)]
+    if segment == "paid":
+        return [BotUser.plan_paid.is_(True)]
+    if segment == "referral":
+        return [
+            BotUser.id.in_(
+                select(BotEvent.bot_user_id).where(
+                    BotEvent.event_type == "referral_enter"
+                )
+            )
+        ]
+    raise ValueError(f"unknown broadcast segment: {segment!r}")
+
+
+def _lang_condition(lang: str | None) -> list:
+    """Optional language filter. ``None`` means all languages."""
+    return [BotUser.language == lang] if lang else []
+
+
+async def count_segment(
+    session: AsyncSession, segment: str, lang: str | None = None
+) -> int:
+    """How many users match ``segment`` (optionally filtered by language)."""
+    stmt = select(func.count()).select_from(BotUser).where(
+        *_segment_conditions(segment), *_lang_condition(lang)
+    )
+    return int((await session.execute(stmt)).scalar_one())
+
+
+async def segment_counts(session: AsyncSession) -> dict[str, int]:
+    """Live recipient count per segment (language-agnostic) for the picker."""
+    return {seg: await count_segment(session, seg) for seg in BROADCAST_SEGMENTS}
+
+
+async def broadcast_recipients(
+    session: AsyncSession, segment: str, lang: str | None = None
+) -> list[int]:
+    """Telegram ids to broadcast to, for ``segment`` + optional language."""
+    stmt = (
+        select(BotUser.telegram_id)
+        .where(*_segment_conditions(segment), *_lang_condition(lang))
+        .order_by(BotUser.first_seen_at)
+    )
+    return list((await session.execute(stmt)).scalars().all())
+
+
+async def record_broadcast(
+    session: AsyncSession,
+    *,
+    segment: str,
+    lang: str | None,
+    total: int,
+    delivered: int,
+    failed: int,
+) -> BotBroadcast:
+    """Persist an audit row for one completed broadcast run."""
+    row = BotBroadcast(
+        segment=segment,
+        lang=lang,
+        total=total,
+        delivered=delivered,
+        failed=failed,
     )
     session.add(row)
     await session.flush()

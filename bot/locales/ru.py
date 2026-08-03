@@ -100,6 +100,48 @@ texts: dict[str, str] = {
     "operator_relay_prefix": "👤 Оператор: ",
     "user_relay_prefix": "👤 @{username}: ",
     "operator_no_active_chat": "Нет активного чата с пользователем.",
+    # admin broadcast flow (mailing, /broadcast — RU only, single admin)
+    "bcast_pick_segment": "📢 Рассылка. Кому отправляем?",
+    "bcast_pick_lang": "🌐 Язык получателей?",
+    "bcast_seg_all": "Все",
+    "bcast_seg_no_shop": "Не создали магазин",
+    "bcast_seg_no_product": "Без товара",
+    "bcast_seg_no_training": "Не завершили обучение",
+    "bcast_seg_trial": "На триале",
+    "bcast_seg_paid": "Оплатили",
+    "bcast_seg_referral": "По реф-ссылке",
+    "bcast_lang_all": "Все языки",
+    "bcast_lang_ru": "Русский",
+    "bcast_lang_uz": "Узбекский",
+    "bcast_ask_content": (
+        "✍️ Пришлите сообщение для рассылки: текст, фото с подписью "
+        "или перешлите пост из канала."
+    ),
+    "bcast_ask_cta": "Добавить кнопку «Создать магазин» под сообщением?",
+    "bcast_cta_yes": "✅ С кнопкой «Создать магазин»",
+    "bcast_cta_no": "Без кнопки",
+    "bcast_preview_summary": (
+        "👆 Так будет выглядеть рассылка.\n\n"
+        "Сегмент: {segment}\n"
+        "Язык: {lang}\n"
+        "Получателей: {count}"
+    ),
+    "bcast_btn_test": "🧪 Тест (только мне)",
+    "bcast_btn_send": "✅ Отправить всем ({count})",
+    "bcast_btn_cancel": "✖️ Отмена",
+    "bcast_empty": "В этом сегменте нет получателей. Рассылка отменена.",
+    "bcast_cancelled": "Рассылка отменена.",
+    "bcast_sending": "📤 Отправляю рассылку… ({count} получателей)",
+    "bcast_test_done": "🧪 Тест отправлен вам. Проверьте — и жмите «Отправить всем».",
+    "bcast_report": (
+        "✅ Рассылка завершена.\n\n"
+        "Доставлено: {delivered}\n"
+        "Не доставлено: {failed} (заблокировали бота или удалились)"
+    ),
+    "bcast_no_cta_url": (
+        "⚠️ Кнопка не добавлена: не задан PLATFORM_WEBAPP_URL. "
+        "Рассылка уйдёт без кнопки."
+    ),
     # admin notification — new platform registration
     "admin_new_registration": (
         "🎉 Новая регистрация на платформе!\n\n"
