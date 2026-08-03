@@ -18,6 +18,16 @@ def _is_admin(chat_id: int) -> bool:
     return chat_id == settings.SUPPORT_CHAT_ID
 
 
+def is_relayable(text: str | None) -> bool:
+    """Текст из админского чата, который надо переслать пользователю.
+
+    Команды (`/start`, `/chatid`, …) исключены: этот роутер подключён раньше
+    start.router, и без фильтра он съедал бы их — админ не видел бы меню входа
+    на платформу. `/broadcast` работает и так: admin.router идёт ещё раньше.
+    """
+    return bool(text) and not text.startswith("/")
+
+
 @router.callback_query(F.data.startswith("operator:start:"))
 async def operator_start_chat(callback: CallbackQuery, bot: Bot) -> None:
     if callback.message is None or not _is_admin(callback.message.chat.id):
@@ -56,7 +66,14 @@ async def operator_start_chat(callback: CallbackQuery, bot: Bot) -> None:
         )
 
 
-@router.message(F.text & F.chat.func(lambda c: c.id == settings.SUPPORT_CHAT_ID))
+# Сообщение админа, подлежащее пересылке пользователю. Вынесено из декоратора,
+# чтобы фильтр можно было проверить тестами напрямую.
+RELAY_FILTER = F.chat.func(lambda c: c.id == settings.SUPPORT_CHAT_ID) & F.text.func(
+    is_relayable
+)
+
+
+@router.message(RELAY_FILTER)
 async def operator_relay_to_user(message: Message, bot: Bot) -> None:
     if _current_user_id is None:
         await message.answer(RU["operator_no_active_chat"])
