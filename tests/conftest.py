@@ -38,11 +38,14 @@ def make_message():
         username: str = "testuser",
         first_name: str = "Иван",
         language_code: str = "ru",
+        chat_id: int | None = None,
     ):
         msg = MagicMock()
         msg.text = text
         msg.answer = AsyncMock()
         msg.forward = AsyncMock()
+        # Личный чат: chat.id == from_user.id, если не задано иное.
+        msg.chat.id = user_id if chat_id is None else chat_id
         msg.from_user = MagicMock()
         msg.from_user.id = user_id
         msg.from_user.username = username

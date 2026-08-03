@@ -141,6 +141,29 @@ async def test_utm_not_overwritten_on_second_start(make_message, make_command, d
 
 
 # ---------------------------------------------------------------------------
+# Админ на /start видит те же кнопки входа, что и обычный пользователь
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_admin_start_shows_both_login_buttons(
+    make_message, make_command, db_session, make_state
+):
+    """Спека GRAMMERCE_BOT_ADMIN_BUTTONS: админ получает WebApp-кнопку входа
+    и ссылку «Открыть на компьютере» с одноразовым consume_url."""
+    from bot.config import settings
+
+    message = make_message(text="/start", user_id=settings.SUPPORT_CHAT_ID)
+    await cmd_start(message, command=make_command(args=None),
+                    session=db_session, bot=AsyncMock(), state=make_state())
+
+    markup = message.answer.call_args.kwargs["reply_markup"]
+    buttons = [b for row in markup.inline_keyboard for b in row]
+
+    assert markup.inline_keyboard[0][0].web_app is not None  # основная CTA — Mini App
+    assert any(b.url == "https://platform.test/consume/x" for b in buttons)
+
+
+# ---------------------------------------------------------------------------
 # Referral deep-link: /start ref_<code>
 # ---------------------------------------------------------------------------
 
