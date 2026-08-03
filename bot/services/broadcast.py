@@ -25,15 +25,18 @@ async def run_broadcast(
     from_chat_id: int,
     message_id: int,
     reply_markup: InlineKeyboardMarkup | None = None,
-) -> tuple[int, int]:
+) -> tuple[int, int, list[int]]:
     """Copy ``message_id`` (living in ``from_chat_id``) to every recipient.
 
-    Returns ``(delivered, failed)``. A user who blocked the bot or deleted their
-    account (``TelegramForbiddenError``) is a failure, not a crash. On a flood
-    wait we sleep the requested time and retry that same recipient once.
+    Returns ``(delivered, failed, blocked)``, where ``blocked`` lists the
+    telegram_ids that answered 403 — the caller persists them so later runs
+    skip those users. A user who blocked the bot or deleted their account is a
+    failure, not a crash. On a flood wait we sleep the requested time and retry
+    that same recipient once.
     """
     delivered = 0
     failed = 0
+    blocked: list[int] = []
     for tg_id in recipients:
         try:
             await bot.copy_message(
@@ -54,16 +57,25 @@ async def run_broadcast(
                     reply_markup=reply_markup,
                 )
                 delivered += 1
+            except TelegramForbiddenError:
+                blocked.append(tg_id)
+                failed += 1
             except Exception:
                 logger.warning("broadcast: retry failed for %s", tg_id, exc_info=True)
                 failed += 1
         except TelegramForbiddenError:
             # Bot blocked or account deleted — expected, count and move on.
+            blocked.append(tg_id)
             failed += 1
         except Exception:
             logger.warning("broadcast: send failed for %s", tg_id, exc_info=True)
             failed += 1
         await asyncio.sleep(_SEND_INTERVAL)
 
-    logger.info("broadcast done: %s delivered, %s failed", delivered, failed)
-    return delivered, failed
+    logger.info(
+        "broadcast done: %s delivered, %s failed (%s blocked)",
+        delivered,
+        failed,
+        len(blocked),
+    )
+    return delivered, failed, blocked

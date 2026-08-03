@@ -43,6 +43,11 @@ async def get_or_create_user(
     user.last_active_at = datetime.utcnow()
     if username and user.username != username:
         user.username = username
+    # Any incoming update proves the bot is not blocked anymore — Telegram
+    # would not deliver it otherwise. Blocking is reversible, so is the flag.
+    if user.blocked_at is not None:
+        logger.info("user %s unblocked the bot", telegram_id)
+        user.blocked_at = None
     await session.flush()
     return user, False
 
@@ -214,10 +219,30 @@ async def last_push_sent_at(
     return result.scalar_one_or_none()
 
 
+async def mark_blocked(session: AsyncSession, telegram_id: int) -> None:
+    """Flag a user who answered 403 (blocked the bot / deleted the account).
+
+    Idempotent: re-flagging keeps the original timestamp. Unknown telegram_ids
+    are ignored — the caller is a delivery loop, not a registration path.
+    """
+    user = await get_user_by_telegram_id(session, telegram_id)
+    if user is None or user.blocked_at is not None:
+        return
+    user.blocked_at = datetime.utcnow()
+    await session.flush()
+
+
 async def select_push_candidates(session: AsyncSession) -> list[BotUser]:
-    """Owners eligible for activation pushes (paid plan turns all pushes off)."""
+    """Owners eligible for activation pushes.
+
+    A paid plan turns all pushes off; users who blocked the bot are skipped —
+    Telegram rejects every send, and retrying them each hour would burn a
+    platform auth call per user per tick, forever.
+    """
     result = await session.execute(
-        select(BotUser).where(BotUser.plan_paid.is_(False))
+        select(BotUser).where(
+            BotUser.plan_paid.is_(False), BotUser.blocked_at.is_(None)
+        )
     )
     return list(result.scalars().all())
 
@@ -338,12 +363,19 @@ def _lang_condition(lang: str | None) -> list:
     return [BotUser.language == lang] if lang else []
 
 
+def _reachable_condition() -> list:
+    """Excludes users who blocked the bot — Telegram rejects every send to them,
+    so counting them would promise the admin an audience that cannot be reached.
+    """
+    return [BotUser.blocked_at.is_(None)]
+
+
 async def count_segment(
     session: AsyncSession, segment: str, lang: str | None = None
 ) -> int:
-    """How many users match ``segment`` (optionally filtered by language)."""
+    """How many reachable users match ``segment`` (optionally filtered by language)."""
     stmt = select(func.count()).select_from(BotUser).where(
-        *_segment_conditions(segment), *_lang_condition(lang)
+        *_segment_conditions(segment), *_lang_condition(lang), *_reachable_condition()
     )
     return int((await session.execute(stmt)).scalar_one())
 
@@ -356,10 +388,17 @@ async def segment_counts(session: AsyncSession) -> dict[str, int]:
 async def broadcast_recipients(
     session: AsyncSession, segment: str, lang: str | None = None
 ) -> list[int]:
-    """Telegram ids to broadcast to, for ``segment`` + optional language."""
+    """Telegram ids to broadcast to, for ``segment`` + optional language.
+
+    Users who blocked the bot are left out — see :func:`_reachable_condition`.
+    """
     stmt = (
         select(BotUser.telegram_id)
-        .where(*_segment_conditions(segment), *_lang_condition(lang))
+        .where(
+            *_segment_conditions(segment),
+            *_lang_condition(lang),
+            *_reachable_condition(),
+        )
         .order_by(BotUser.first_seen_at)
     )
     return list((await session.execute(stmt)).scalars().all())

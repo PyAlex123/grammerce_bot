@@ -87,6 +87,30 @@ async def test_segment_counts(db_session):
     assert counts["referral"] == 1
 
 
+async def test_blocked_users_are_excluded_from_audience(db_session):
+    """Заблокировавшие бота недостижимы — ни в списке получателей, ни в счётчике."""
+    await _seed(db_session)
+    await crud.mark_blocked(db_session, 101)
+
+    assert set(await crud.broadcast_recipients(db_session, "all")) == {
+        102, 103, 104, 105, 106
+    }
+    assert set(await crud.broadcast_recipients(db_session, "no_shop")) == {106}
+    assert (await crud.segment_counts(db_session))["all"] == 5
+
+
+async def test_mark_blocked_is_idempotent(db_session):
+    await _seed(db_session)
+    await crud.mark_blocked(db_session, 101)
+    first = (await crud.get_user_by_telegram_id(db_session, 101)).blocked_at
+    await crud.mark_blocked(db_session, 101)
+    assert (await crud.get_user_by_telegram_id(db_session, 101)).blocked_at == first
+
+
+async def test_mark_blocked_ignores_unknown_user(db_session):
+    await crud.mark_blocked(db_session, 999999)  # не должно падать
+
+
 async def test_record_broadcast(db_session):
     row = await crud.record_broadcast(
         db_session, segment="no_shop", lang=None, total=10, delivered=8, failed=2
@@ -108,14 +132,14 @@ def _no_sleep(monkeypatch):
 async def test_run_broadcast_all_delivered():
     bot = MagicMock()
     bot.copy_message = AsyncMock()
-    delivered, failed = await bc.run_broadcast(
+    delivered, failed, blocked = await bc.run_broadcast(
         bot, [1, 2, 3], from_chat_id=99, message_id=5
     )
-    assert (delivered, failed) == (3, 0)
+    assert (delivered, failed, blocked) == (3, 0, [])
     assert bot.copy_message.await_count == 3
 
 
-async def test_run_broadcast_forbidden_counts_as_failed():
+async def test_run_broadcast_forbidden_counts_as_failed_and_is_reported():
     bot = MagicMock()
 
     async def _copy(chat_id, **kwargs):
@@ -123,10 +147,24 @@ async def test_run_broadcast_forbidden_counts_as_failed():
             raise TelegramForbiddenError(method=MagicMock(), message="blocked")
 
     bot.copy_message = AsyncMock(side_effect=_copy)
-    delivered, failed = await bc.run_broadcast(
+    delivered, failed, blocked = await bc.run_broadcast(
         bot, [1, 2, 3], from_chat_id=99, message_id=5
     )
-    assert (delivered, failed) == (2, 1)
+    # Заблокировавший возвращается вызывающему, чтобы тот пометил его в БД.
+    assert (delivered, failed, blocked) == (2, 1, [2])
+
+
+async def test_run_broadcast_reports_forbidden_on_flood_retry():
+    """403 может прийти и на повторе после flood wait — его тоже надо вернуть."""
+    bot = MagicMock()
+    bot.copy_message = AsyncMock(side_effect=[
+        TelegramRetryAfter(method=MagicMock(), message="flood", retry_after=0),
+        TelegramForbiddenError(method=MagicMock(), message="blocked"),
+    ])
+    delivered, failed, blocked = await bc.run_broadcast(
+        bot, [7], from_chat_id=99, message_id=5
+    )
+    assert (delivered, failed, blocked) == (0, 1, [7])
 
 
 async def test_run_broadcast_retry_after_then_success():
@@ -135,10 +173,10 @@ async def test_run_broadcast_retry_after_then_success():
         TelegramRetryAfter(method=MagicMock(), message="flood", retry_after=0),
         None,  # retry succeeds
     ])
-    delivered, failed = await bc.run_broadcast(
+    delivered, failed, blocked = await bc.run_broadcast(
         bot, [1], from_chat_id=99, message_id=5
     )
-    assert (delivered, failed) == (1, 0)
+    assert (delivered, failed, blocked) == (1, 0, [])
     assert bot.copy_message.await_count == 2
 
 

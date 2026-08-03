@@ -12,6 +12,7 @@ import logging
 from datetime import datetime, timedelta
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramForbiddenError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from bot.db import crud
@@ -123,9 +124,14 @@ def due_send(
     return None
 
 
+class PushBlocked(Exception):
+    """The user blocked the bot — permanent, must not be retried."""
+
+
 async def _send_push(bot: Bot, user: BotUser, step: int, send_no: int) -> bool:
     """Render and send one push. Returns True on success (so the caller records
-    it). Failures are logged and left unrecorded → retried next tick."""
+    it). Transient failures are logged and left unrecorded → retried next tick.
+    Raises :class:`PushBlocked` when Telegram says the bot is blocked."""
     lang = user.language or "ru"
     text = t(lang, f"push{step}_s{send_no}")
     with_channel = send_no == 2 and step in _CHANNEL_STEPS
@@ -148,6 +154,10 @@ async def _send_push(bot: Bot, user: BotUser, step: int, send_no: int) -> bool:
         # is a future, config-driven enhancement — it would slot in here.
         await bot.send_message(user.telegram_id, text, reply_markup=markup)
         return True
+    except TelegramForbiddenError as exc:
+        # Expected, not an incident: one line, no traceback.
+        logger.info("push: tg_id=%s blocked the bot — skipping from now on", user.telegram_id)
+        raise PushBlocked from exc
     except Exception:
         logger.error(
             "push: failed to send step=%s send=%s to tg_id=%s",
@@ -174,6 +184,7 @@ async def run_once(
         return 0
 
     sent_count = 0
+    blocked_count = 0
     async with session_factory() as session:
         candidates = await crud.select_push_candidates(session)
         for user in candidates:
@@ -188,7 +199,16 @@ async def run_once(
             send_no = due_send(user, step, already, now_utc)
             if send_no is None:
                 continue
-            if not await _send_push(bot, user, step, send_no):
+            try:
+                ok = await _send_push(bot, user, step, send_no)
+            except PushBlocked:
+                # Flag once; select_push_candidates skips them on every later
+                # tick, so we stop burning a platform auth call per user.
+                await crud.mark_blocked(session, user.telegram_id)
+                await session.commit()
+                blocked_count += 1
+                continue
+            if not ok:
                 continue
             await crud.record_push_sent(session, user, step, send_no)
             await crud.log_event(
@@ -199,6 +219,8 @@ async def run_once(
 
     if sent_count:
         logger.info("push: sent %s reminder(s)", sent_count)
+    if blocked_count:
+        logger.info("push: %s user(s) newly flagged as having blocked the bot", blocked_count)
     return sent_count
 
 

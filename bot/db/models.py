@@ -31,6 +31,11 @@ class BotUser(Base):
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_active_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     registered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Set when Telegram answers 403 (user blocked the bot or deleted the
+    # account). Such users are excluded from pushes and broadcasts — retrying
+    # them forever burns platform auth calls and floods the logs. Cleared on
+    # the next /start: blocking is reversible.
+    blocked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Activation funnel state (fed by the platform via /api/bot/funnel-state).
     # store_created_at == registered_at (reused, not duplicated).

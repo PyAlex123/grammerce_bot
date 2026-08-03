@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
+from aiogram.exceptions import TelegramForbiddenError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -303,6 +304,83 @@ async def test_run_once_sends_even_if_auth_link_fails(factory, monkeypatch):
 
     assert sent == 1
     bot.send_message.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# Заблокировавшие бота: помечаем один раз и больше не трогаем
+# ---------------------------------------------------------------------------
+
+async def _blocked_at(factory, telegram_id: int):
+    async with factory() as session:
+        user = await crud.get_user_by_telegram_id(session, telegram_id)
+        assert user is not None
+        return user.blocked_at
+
+
+@pytest.mark.asyncio
+async def test_run_once_flags_user_who_blocked_the_bot(factory):
+    async with factory() as session:
+        user, _ = await crud.get_or_create_user(session, 1009, "blocker")
+        user.first_seen_at = DAY - timedelta(hours=25)
+        await session.commit()
+
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(
+        side_effect=TelegramForbiddenError(method=AsyncMock(), message="bot was blocked")
+    )
+    sent = await ps.run_once(bot, factory, now_utc=DAY)
+
+    assert sent == 0
+    assert await _blocked_at(factory, 1009) is not None
+    # Неудачная отправка не записывается как доставленная.
+    assert await _count_sends(factory) == 0
+
+
+@pytest.mark.asyncio
+async def test_blocked_user_is_not_retried_next_tick(factory, monkeypatch):
+    """Ради этого всё и делается: ни отправки, ни запроса ссылки на платформу."""
+    async with factory() as session:
+        user, _ = await crud.get_or_create_user(session, 1010, "blocker")
+        user.first_seen_at = DAY - timedelta(hours=25)
+        await session.commit()
+
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(
+        side_effect=TelegramForbiddenError(method=AsyncMock(), message="bot was blocked")
+    )
+    await ps.run_once(bot, factory, now_utc=DAY)
+
+    issue = AsyncMock(return_value="https://platform.test/consume/x")
+    monkeypatch.setattr(ps, "issue_auth_link_by", issue)
+    bot.send_message.reset_mock()
+
+    sent = await ps.run_once(bot, factory, now_utc=DAY + timedelta(days=1))
+
+    assert sent == 0
+    bot.send_message.assert_not_called()
+    issue.assert_not_called()  # платформу больше не дёргаем
+
+
+@pytest.mark.asyncio
+async def test_blocked_flag_cleared_when_user_returns(factory):
+    """Блокировка обратима: любое входящее сообщение снимает флаг."""
+    async with factory() as session:
+        user, _ = await crud.get_or_create_user(session, 1011, "returner")
+        user.first_seen_at = DAY - timedelta(hours=25)
+        await session.commit()
+
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(
+        side_effect=TelegramForbiddenError(method=AsyncMock(), message="bot was blocked")
+    )
+    await ps.run_once(bot, factory, now_utc=DAY)
+    assert await _blocked_at(factory, 1011) is not None
+
+    async with factory() as session:
+        await crud.get_or_create_user(session, 1011, "returner")  # /start
+        await session.commit()
+
+    assert await _blocked_at(factory, 1011) is None
 
 
 @pytest.mark.asyncio

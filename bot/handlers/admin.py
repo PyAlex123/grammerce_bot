@@ -135,6 +135,7 @@ async def send_test(callback: CallbackQuery, state: FSMContext, bot: Bot) -> Non
         await callback.answer()
         return
     data = await state.get_data()
+    # Single recipient — the admin themselves; nothing to flag as blocked.
     await run_broadcast(
         bot,
         [settings.SUPPORT_CHAT_ID],
@@ -166,13 +167,17 @@ async def send_all(
     await callback.message.answer(RU["bcast_sending"].format(count=len(recipients)))
     await callback.answer()
 
-    delivered, failed = await run_broadcast(
+    delivered, failed, blocked = await run_broadcast(
         bot,
         recipients,
         from_chat_id=data["from_chat_id"],
         message_id=data["message_id"],
         reply_markup=_cta_markup(data),
     )
+    # Persist who blocked the bot so the next broadcast (and the push
+    # scheduler) skip them instead of re-discovering it every run.
+    for tg_id in blocked:
+        await crud.mark_blocked(session, tg_id)
     await crud.record_broadcast(
         session,
         segment=segment,
